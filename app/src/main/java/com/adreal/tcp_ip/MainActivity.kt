@@ -68,8 +68,8 @@ class MainActivity : AppCompatActivity() {
             showDialog()
         }
 
-        binding.mainActivityIPAddress.text = getIPAddress(true)
-        binding.mainActivitySendingPort.text = PORT.toString()
+        binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : ${PORT.toString()}"
+        //binding.mainActivitySendingPort.text = PORT.toString()
     }
 
     private fun bindingRequest() {
@@ -98,8 +98,8 @@ class MainActivity : AppCompatActivity() {
                 val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
                 CoroutineScope(Dispatchers.Main.immediate).launch {
-                    binding.mainActivityRouterIpTextView.text = ma.address.toString()
-                    binding.mainActivityRouterPortTextView.text = ma.port.toString()
+                    binding.mainActivityPublicCredentials.text = "${ma.address.toString()} : ${ma.port.toString()}"
+                    //binding.mainActivityRouterPortTextView.text = ma.port.toString()
                     x++
                 }
             }
@@ -135,11 +135,13 @@ class MainActivity : AppCompatActivity() {
                 val port = mainActivityViewModel.receiverPORT
                 val ip = mainActivityViewModel.receiverIP
 
-                CoroutineScope(Dispatchers.Main.immediate).launch {
-                    binding.mainActivityUDPStatusTextView.text = "UDP is configured on $ip : $port"
-                }
+//                CoroutineScope(Dispatchers.Main.immediate).launch {
+//                    binding.mainActivityUDPStatusTextView.text = "UDP is configured on $ip : $port"
+//                }
 
                 val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
+
+                addMessage(binding.mainActivityUDPClientEditText.text.toString(),true)
 
                 binding.mainActivityUDPClientEditText.text.clear()
 
@@ -160,19 +162,31 @@ class MainActivity : AppCompatActivity() {
                         val rp = DatagramPacket(ByteArray(512), 512)
                         s.receive(rp)
                         val data2 = String(rp.data)
+                        Log.d("data",data2)
                         CoroutineScope(Dispatchers.Main.immediate).launch {
-                            binding.mainActivityReceivedMessage.text = data2
-                            binding.mainActivityReceivedMessage.setAutoSizeTextTypeUniformWithConfiguration(
-                                10,
-                                50,
-                                1,
-                                TypedValue.COMPLEX_UNIT_DIP
-                            )
+//                            binding.mainActivityReceivedMessage.text = data2
+//                            binding.mainActivityReceivedMessage.setAutoSizeTextTypeUniformWithConfiguration(
+//                                10,
+//                                50,
+//                                1,
+//                                TypedValue.COMPLEX_UNIT_DIP
+//                            )
+
+                            addMessage(data2,false)
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun addMessage(message : String, me : Boolean){
+        if(me){
+            binding.mainActivityChatTextView.append("\n\nYou : $message")
+        }else{
+            binding.mainActivityChatTextView.append("\n\nFriend : $message")
+        }
+        binding.mainActivityScrollBar.fullScroll(View.FOCUS_DOWN)
     }
 
     private fun darkTheme() {
