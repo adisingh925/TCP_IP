@@ -38,30 +38,30 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.mainActivityUDPServerButton.isEnabled = false
-        binding.mainActivityUDPClientButton.isEnabled = false
+        //binding.mainActivityUDPClientButton.isEnabled = false
 
         CoroutineScope(Dispatchers.IO).launch {
             bindingRequest()
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            //udpServer()
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            bindingRequest1()
+//        }
 
-        binding.mainActivityConfigureUDPButton.setOnClickListener {
-            if(binding.mainActivityUDPIpAddressEditText.text.isNotBlank() && binding.mainActivityUDPPortEditText.text.isNotBlank()){
-
-                binding.mainActivityUDPClientButton.isEnabled = true
-
+//        binding.mainActivityConfigureUDPButton.setOnClickListener {
+//            if(binding.mainActivityUDPIpAddressEditText.text.isNotBlank() && binding.mainActivityUDPPortEditText.text.isNotBlank()){
+//
+//                binding.mainActivityUDPClientButton.isEnabled = true
+//
 //                CoroutineScope(Dispatchers.IO).launch {
 //                    udpServer()
 //                }
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    udpClient()
-                }
-            }
-        }
+//
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    udpClient()
+//                }
+//            }
+//        }
 
         CoroutineScope(Dispatchers.IO).launch {
             server()
@@ -80,30 +80,69 @@ class MainActivity : AppCompatActivity() {
         val changeRequest = ChangeRequest()
         sendMH.addMessageAttribute(changeRequest)
         val data = sendMH.bytes
-        val s = DatagramSocket()
+        val s = DatagramSocket(PORT)
         s.reuseAddress = true
+        var x = 0
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val p = DatagramPacket(data, data.size,
-                withContext(Dispatchers.IO) {
-                    InetAddress.getByName(GOOGLE_STUN_SERVER_IP)
-                }, GOOGLE_STUN_SERVER_PORT
-            )
-            withContext(Dispatchers.IO) {
-                s.send(p)
+        binding.mainActivityUDPClientButton.setOnClickListener {
+            if (x == 0) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val p = DatagramPacket(
+                        data,
+                        data.size,
+                        InetAddress.getByName(GOOGLE_STUN_SERVER_IP),
+                        GOOGLE_STUN_SERVER_PORT
+                    )
+                    s.send(p)
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val rp = DatagramPacket(ByteArray(32), 32)
+                        s.receive(rp)
+                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                        receiveMH.parseAttributes(rp.data)
+                        val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+
+                        CoroutineScope(Dispatchers.Main.immediate).launch {
+                            binding.mainActivityRouterIpTextView.text = ma.address.toString()
+                            binding.mainActivityRouterPortTextView.text = ma.port.toString()
+                            x++
+                        }
+                    }
+                }
+            } else {
+
+                val port = binding.mainActivityUDPPortEditText.text.toString().toInt()
+                val ip = binding.mainActivityUDPIpAddressEditText.text.toString()
+
+                CoroutineScope(Dispatchers.Main.immediate).launch {
+                    binding.mainActivityUDPStatusTextView.text = "UDP is running on $ip : $port"
+                }
+
+                val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    val p = DatagramPacket(
+                        data1, data1.size,
+                        withContext(Dispatchers.IO) {
+                            InetAddress.getByName(ip)
+                        }, port
+                    )
+                    withContext(Dispatchers.IO) {
+                        s.send(p)
+                    }
+                }
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    while (true) {
+                        val rp = DatagramPacket(ByteArray(32), 32)
+                        s.receive(rp)
+                        val data2 = String(rp.data)
+                        CoroutineScope(Dispatchers.Main.immediate).launch {
+                            binding.mainActivityUDPClientTextView.text = "UDP Client : $data2"
+                        }
+                    }
+                }
             }
-        }
-
-        val rp = DatagramPacket(ByteArray(32), 32)
-        s.receive(rp)
-
-        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-        receiveMH.parseAttributes(rp.data)
-        val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
-
-        CoroutineScope(Dispatchers.Main.immediate).launch {
-            binding.mainActivityRouterIpTextView.text = ma.address.toString()
-            binding.mainActivityRouterPortTextView.text = ma.port.toString()
         }
     }
 
@@ -132,7 +171,7 @@ class MainActivity : AppCompatActivity() {
                 clientAddress = request.address
                 clientPort = request.port
 
-                Log.d("address port","$clientAddress + $clientPort")
+                Log.d("address port", "$clientAddress + $clientPort")
             }
         }
 
