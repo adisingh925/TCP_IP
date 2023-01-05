@@ -26,7 +26,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        const val PORT = 8798
+        const val PORT = 60001
         const val IP_ADDRESS = "127.0.0.1"
         const val UDP_IP_ADDRESS = "192.168.74.219"
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
@@ -44,14 +44,18 @@ class MainActivity : AppCompatActivity() {
             bindingRequest()
         }
 
+        CoroutineScope(Dispatchers.IO).launch {
+            //udpServer()
+        }
+
         binding.mainActivityConfigureUDPButton.setOnClickListener {
             if(binding.mainActivityUDPIpAddressEditText.text.isNotBlank() && binding.mainActivityUDPPortEditText.text.isNotBlank()){
 
                 binding.mainActivityUDPClientButton.isEnabled = true
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    udpServer()
-                }
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    udpServer()
+//                }
 
                 CoroutineScope(Dispatchers.IO).launch {
                     udpClient()
@@ -104,8 +108,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun udpServer() {
-        val port = binding.mainActivityUDPPortEditText.text.toString().toInt()
-        val socket = DatagramSocket(port)
+        //val port = binding.mainActivityUDPPortEditText.text.toString().toInt()
+        val socket = DatagramSocket(PORT)
         var buffer = ByteArray(512)
 
         var clientAddress = InetAddress.getByName("localhost")
@@ -113,10 +117,12 @@ class MainActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
+
                 val request = DatagramPacket(buffer, buffer.size)
                 withContext(Dispatchers.IO) {
                     socket.receive(request)
                 }
+
                 val data = String(request.data)
                 buffer = ByteArray(512)
                 CoroutineScope(Dispatchers.Main.immediate).launch {
@@ -125,6 +131,8 @@ class MainActivity : AppCompatActivity() {
 
                 clientAddress = request.address
                 clientPort = request.port
+
+                Log.d("address port","$clientAddress + $clientPort")
             }
         }
 
@@ -149,7 +157,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val address = InetAddress.getByName(ip)
-        val socket = DatagramSocket()
+        val socket = DatagramSocket(PORT)
         var buffer = ByteArray(512)
 
         binding.mainActivityUDPClientButton.setOnClickListener {
