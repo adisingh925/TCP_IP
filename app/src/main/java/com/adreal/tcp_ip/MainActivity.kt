@@ -1,9 +1,21 @@
 package com.adreal.tcp_ip
 
+import android.app.Dialog
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.ViewModelProvider
+import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
+import com.adreal.tcp_ip.databinding.ConfigureBinding
 import de.javawi.jstun.attribute.ChangeRequest
 import de.javawi.jstun.attribute.MappedAddress
 import de.javawi.jstun.attribute.MessageAttributeInterface
@@ -25,50 +37,34 @@ class MainActivity : AppCompatActivity() {
         ActivityMainBinding.inflate(layoutInflater)
     }
 
+    private val dialog by lazy {
+        Dialog(this)
+    }
+
+    private val mainActivityViewModel by lazy {
+        ViewModelProvider(this)[MainActivityViewModel::class.java]
+    }
+
     companion object {
         const val PORT = 60001
-        const val IP_ADDRESS = "127.0.0.1"
-        const val UDP_IP_ADDRESS = "192.168.74.219"
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        darkTheme()
         setContentView(binding.root)
 
-        binding.mainActivityUDPServerButton.isEnabled = false
-        //binding.mainActivityUDPClientButton.isEnabled = false
+        initDialog()
+        //showDialog()
 
         CoroutineScope(Dispatchers.IO).launch {
             bindingRequest()
         }
 
-//        CoroutineScope(Dispatchers.IO).launch {
-//            bindingRequest1()
-//        }
-
-//        binding.mainActivityConfigureUDPButton.setOnClickListener {
-//            if(binding.mainActivityUDPIpAddressEditText.text.isNotBlank() && binding.mainActivityUDPPortEditText.text.isNotBlank()){
-//
-//                binding.mainActivityUDPClientButton.isEnabled = true
-//
-//                CoroutineScope(Dispatchers.IO).launch {
-//                    udpServer()
-//                }
-//
-//                CoroutineScope(Dispatchers.IO).launch {
-//                    udpClient()
-//                }
-//            }
-//        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            server()
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            client()
+        binding.mainActivityConfigureButton.setOnClickListener {
+            showDialog()
         }
 
         binding.mainActivityIPAddress.text = getIPAddress(true)
@@ -84,38 +80,64 @@ class MainActivity : AppCompatActivity() {
         s.reuseAddress = true
         var x = 0
 
-        binding.mainActivityUDPClientButton.setOnClickListener {
-            if (x == 0) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val p = DatagramPacket(
-                        data,
-                        data.size,
-                        InetAddress.getByName(GOOGLE_STUN_SERVER_IP),
-                        GOOGLE_STUN_SERVER_PORT
-                    )
-                    s.send(p)
+        CoroutineScope(Dispatchers.IO).launch {
+            val p = DatagramPacket(
+                data,
+                data.size,
+                InetAddress.getByName(GOOGLE_STUN_SERVER_IP),
+                GOOGLE_STUN_SERVER_PORT
+            )
+            s.send(p)
 
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val rp = DatagramPacket(ByteArray(32), 32)
-                        s.receive(rp)
-                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-                        receiveMH.parseAttributes(rp.data)
-                        val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
-
-                        CoroutineScope(Dispatchers.Main.immediate).launch {
-                            binding.mainActivityRouterIpTextView.text = ma.address.toString()
-                            binding.mainActivityRouterPortTextView.text = ma.port.toString()
-                            x++
-                        }
-                    }
-                }
-            } else {
-
-                val port = binding.mainActivityUDPPortEditText.text.toString().toInt()
-                val ip = binding.mainActivityUDPIpAddressEditText.text.toString()
+            CoroutineScope(Dispatchers.IO).launch {
+                val rp = DatagramPacket(ByteArray(32), 32)
+                s.receive(rp)
+                val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                receiveMH.parseAttributes(rp.data)
+                val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
                 CoroutineScope(Dispatchers.Main.immediate).launch {
-                    binding.mainActivityUDPStatusTextView.text = "UDP is running on $ip : $port"
+                    binding.mainActivityRouterIpTextView.text = ma.address.toString()
+                    binding.mainActivityRouterPortTextView.text = ma.port.toString()
+                    x++
+                }
+            }
+        }
+
+        binding.mainActivityUDPClientButton.setOnClickListener {
+            if (x == 0) {
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    val p = DatagramPacket(
+//                        data,
+//                        data.size,
+//                        InetAddress.getByName(GOOGLE_STUN_SERVER_IP),
+//                        GOOGLE_STUN_SERVER_PORT
+//                    )
+//                    s.send(p)
+//
+//                    CoroutineScope(Dispatchers.IO).launch {
+//                        val rp = DatagramPacket(ByteArray(32), 32)
+//                        s.receive(rp)
+//                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+//                        receiveMH.parseAttributes(rp.data)
+//                        val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+//
+//                        CoroutineScope(Dispatchers.Main.immediate).launch {
+//                            binding.mainActivityRouterIpTextView.text = ma.address.toString()
+//                            binding.mainActivityRouterPortTextView.text = ma.port.toString()
+//                            x++
+//                        }
+//                    }
+//                }
+            } else {
+
+                val port = mainActivityViewModel.receiverPORT
+                val ip = mainActivityViewModel.receiverIP
+
+                Log.d("ip port",port.toString() + ip)
+
+                CoroutineScope(Dispatchers.Main.immediate).launch {
+                    binding.mainActivityUDPStatusTextView.text = "UDP is configured on $ip : $port"
                 }
 
                 val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
@@ -137,8 +159,9 @@ class MainActivity : AppCompatActivity() {
                         val rp = DatagramPacket(ByteArray(32), 32)
                         s.receive(rp)
                         val data2 = String(rp.data)
+                        Log.d("data",data2)
                         CoroutineScope(Dispatchers.Main.immediate).launch {
-                            binding.mainActivityUDPClientTextView.text = "UDP Client : $data2"
+                            binding.mainActivityReceivedMessage.text = data2
                         }
                     }
                 }
@@ -146,119 +169,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun udpServer() {
-        //val port = binding.mainActivityUDPPortEditText.text.toString().toInt()
-        val socket = DatagramSocket(PORT)
-        var buffer = ByteArray(512)
-
-        var clientAddress = InetAddress.getByName("localhost")
-        var clientPort = 0
-
-        CoroutineScope(Dispatchers.IO).launch {
-            while (true) {
-
-                val request = DatagramPacket(buffer, buffer.size)
-                withContext(Dispatchers.IO) {
-                    socket.receive(request)
-                }
-
-                val data = String(request.data)
-                buffer = ByteArray(512)
-                CoroutineScope(Dispatchers.Main.immediate).launch {
-                    binding.mainActivityUDPServerTextView.text = "UDP Server : $data"
-                }
-
-                clientAddress = request.address
-                clientPort = request.port
-
-                Log.d("address port", "$clientAddress + $clientPort")
+    private fun darkTheme() {
+        when (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
+            Configuration.UI_MODE_NIGHT_YES -> {
+                setStatusBarColor(R.color.black, R.color.black, false)
             }
-        }
-
-        binding.mainActivityUDPServerButton.setOnClickListener {
-            val data = binding.mainActivityUDPServerEditText.text.toString().toByteArray()
-            CoroutineScope(Dispatchers.IO).launch {
-                val response = DatagramPacket(data, data.size, clientAddress, clientPort)
-                withContext(Dispatchers.IO) {
-                    socket.send(response)
-                }
+            Configuration.UI_MODE_NIGHT_NO -> {
+                setStatusBarColor(R.color.white, R.color.white, true)
+            }
+            Configuration.UI_MODE_NIGHT_UNDEFINED -> {
+                Log.d("Night Mode", "Undefined")
             }
         }
     }
 
-    private fun udpClient() {
-
-        val port = binding.mainActivityUDPPortEditText.text.toString().toInt()
-        val ip = binding.mainActivityUDPIpAddressEditText.text.toString()
-
-        CoroutineScope(Dispatchers.Main.immediate).launch {
-            binding.mainActivityUDPStatusTextView.text = "UDP is running on $ip : $port"
-        }
-
-        val address = InetAddress.getByName(ip)
-        val socket = DatagramSocket(PORT)
-        var buffer = ByteArray(512)
-
-        binding.mainActivityUDPClientButton.setOnClickListener {
-            binding.mainActivityUDPServerButton.isEnabled = true
-            val data = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
-            CoroutineScope(Dispatchers.IO).launch {
-                val request = DatagramPacket(data, data.size, address, port)
-                withContext(Dispatchers.IO) {
-                    socket.send(request)
-                }
-            }
-        }
-
-        while (true) {
-            val response = DatagramPacket(buffer, buffer.size)
-            socket.receive(response)
-            val data = String(response.data)
-            buffer = ByteArray(256)
-            CoroutineScope(Dispatchers.Main.immediate).launch {
-                binding.mainActivityUDPClientTextView.text = "UDP Client : $data"
-            }
-        }
-    }
-
-    private fun server() {
-        val server = ServerSocket(PORT)
-        val client = server.accept()
-        val output = PrintWriter(client.getOutputStream(), true)
-        val input = BufferedReader(InputStreamReader(client.inputStream))
-
-        binding.mainActivityServerButton.setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
-                output.println(binding.mainActivityServerEditText.text.toString())
-            }
-        }
-
-        while (true) {
-            val receivedData = input.readLine()
-            println("Server receiving [${receivedData}]")
-            CoroutineScope(Dispatchers.Main.immediate).launch {
-                binding.mainActivityServerTextView.text = "TCP Server : $receivedData"
-            }
-        }
-    }
-
-    private fun client() {
-        val client = Socket(IP_ADDRESS, PORT)
-        val output = PrintWriter(client.getOutputStream(), true)
-        val input = BufferedReader(InputStreamReader(client.inputStream))
-
-        binding.mainActivityClientButton.setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
-                output.println(binding.mainActivityClientEditText.text.toString())
-            }
-        }
-
-        while (true) {
-            val receivedData = input.readLine()
-            println("Client receiving [${receivedData}]")
-            CoroutineScope(Dispatchers.Main.immediate).launch {
-                binding.mainActivityClientTextView.text = "TCP Client : $receivedData"
-            }
+    private fun setStatusBarColor(
+        statusBarColor: Int,
+        navigationBarColor: Int?,
+        isLightStatusBar: Boolean
+    ) {
+        val window: Window = window
+        val decorView: View = window.decorView
+        val wic = WindowInsetsControllerCompat(window, decorView)
+        wic.isAppearanceLightStatusBars = isLightStatusBar
+        window.statusBarColor = ContextCompat.getColor(this, statusBarColor)
+        if (navigationBarColor != null) {
+            window.navigationBarColor = ContextCompat.getColor(this, navigationBarColor)
         }
     }
 
@@ -291,5 +227,26 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {
         } // for now eat exceptions
         return ""
+    }
+
+    private fun initDialog() {
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+    }
+
+    private fun showDialog(){
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        val bind = ConfigureBinding.inflate(layoutInflater)
+
+        bind.configureDialogDoneButton.setOnClickListener {
+            if(bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()){
+                mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                dialog.dismiss()
+            }
+        }
+
+        //dialog.setCancelable(false)
+        dialog.setContentView(bind.root)
+        dialog.show()
     }
 }
