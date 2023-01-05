@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
@@ -134,13 +135,13 @@ class MainActivity : AppCompatActivity() {
                 val port = mainActivityViewModel.receiverPORT
                 val ip = mainActivityViewModel.receiverIP
 
-                Log.d("ip port",port.toString() + ip)
-
                 CoroutineScope(Dispatchers.Main.immediate).launch {
                     binding.mainActivityUDPStatusTextView.text = "UDP is configured on $ip : $port"
                 }
 
                 val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
+
+                binding.mainActivityUDPClientEditText.text.clear()
 
                 CoroutineScope(Dispatchers.IO).launch {
                     val p = DatagramPacket(
@@ -156,12 +157,17 @@ class MainActivity : AppCompatActivity() {
 
                 CoroutineScope(Dispatchers.IO).launch {
                     while (true) {
-                        val rp = DatagramPacket(ByteArray(32), 32)
+                        val rp = DatagramPacket(ByteArray(512), 512)
                         s.receive(rp)
                         val data2 = String(rp.data)
-                        Log.d("data",data2)
                         CoroutineScope(Dispatchers.Main.immediate).launch {
                             binding.mainActivityReceivedMessage.text = data2
+                            binding.mainActivityReceivedMessage.setAutoSizeTextTypeUniformWithConfiguration(
+                                10,
+                                50,
+                                1,
+                                TypedValue.COMPLEX_UNIT_DIP
+                            )
                         }
                     }
                 }
