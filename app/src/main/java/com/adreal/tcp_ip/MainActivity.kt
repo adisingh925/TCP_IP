@@ -6,11 +6,9 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
-import android.util.TypedValue
 import android.view.View
 import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
@@ -26,10 +24,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.PrintWriter
-import java.net.*
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -93,12 +91,15 @@ class MainActivity : AppCompatActivity() {
             CoroutineScope(Dispatchers.IO).launch {
                 val rp = DatagramPacket(ByteArray(32), 32)
                 s.receive(rp)
-                val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                val receiveMH =
+                    MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                 receiveMH.parseAttributes(rp.data)
-                val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+                val ma: MappedAddress =
+                    receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
                 CoroutineScope(Dispatchers.Main.immediate).launch {
-                    binding.mainActivityPublicCredentials.text = "${ma.address.toString()} : ${ma.port.toString()}"
+                    binding.mainActivityPublicCredentials.text =
+                        "${ma.address.toString()} : ${ma.port.toString()}"
                     //binding.mainActivityRouterPortTextView.text = ma.port.toString()
                     x++
                 }
@@ -141,7 +142,7 @@ class MainActivity : AppCompatActivity() {
 
                 val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
 
-                addMessage(binding.mainActivityUDPClientEditText.text.toString(),true)
+                addMessage(binding.mainActivityUDPClientEditText.text.toString(), true)
 
                 binding.mainActivityUDPClientEditText.text.clear()
 
@@ -162,7 +163,7 @@ class MainActivity : AppCompatActivity() {
                         val rp = DatagramPacket(ByteArray(512), 512)
                         s.receive(rp)
                         val data2 = String(rp.data)
-                        Log.d("data",data2)
+                        Log.d("data", data2)
                         CoroutineScope(Dispatchers.Main.immediate).launch {
 //                            binding.mainActivityReceivedMessage.text = data2
 //                            binding.mainActivityReceivedMessage.setAutoSizeTextTypeUniformWithConfiguration(
@@ -172,7 +173,7 @@ class MainActivity : AppCompatActivity() {
 //                                TypedValue.COMPLEX_UNIT_DIP
 //                            )
 
-                            addMessage(data2,false)
+                            addMessage(data2, false)
                         }
                     }
                 }
@@ -180,10 +181,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun addMessage(message : String, me : Boolean){
-        if(me){
+    private fun addMessage(message: String, me: Boolean) {
+        if (me) {
             binding.mainActivityChatTextView.append("\n\nYou : $message")
-        }else{
+        } else {
             binding.mainActivityChatTextView.append("\n\nFriend : $message")
         }
         binding.mainActivityScrollBar.fullScroll(View.FOCUS_DOWN)
@@ -253,14 +254,15 @@ class MainActivity : AppCompatActivity() {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
     }
 
-    private fun showDialog(){
+    private fun showDialog() {
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         val bind = ConfigureBinding.inflate(layoutInflater)
 
         bind.configureDialogDoneButton.setOnClickListener {
-            if(bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()){
+            if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT =
+                    bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
             }
         }
