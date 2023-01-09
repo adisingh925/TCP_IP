@@ -30,7 +30,6 @@
                 android:value="" />
         </activity>
 
-
         <service
             android:name=".Messaging.CloudMessaging"
             android:exported="false">
