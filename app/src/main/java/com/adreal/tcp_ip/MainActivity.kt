@@ -56,7 +56,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         initDialog()
-        //showDialog()
 
         CoroutineScope(Dispatchers.IO).launch {
             bindingRequest()
@@ -66,8 +65,7 @@ class MainActivity : AppCompatActivity() {
             showDialog()
         }
 
-        binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : ${PORT.toString()}"
-        //binding.mainActivitySendingPort.text = PORT.toString()
+        binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : $PORT"
     }
 
     private fun bindingRequest() {
@@ -83,14 +81,20 @@ class MainActivity : AppCompatActivity() {
             val p = DatagramPacket(
                 data,
                 data.size,
-                InetAddress.getByName(GOOGLE_STUN_SERVER_IP),
+                withContext(Dispatchers.IO) {
+                    InetAddress.getByName(GOOGLE_STUN_SERVER_IP)
+                },
                 GOOGLE_STUN_SERVER_PORT
             )
-            s.send(p)
+            withContext(Dispatchers.IO) {
+                s.send(p)
+            }
 
             CoroutineScope(Dispatchers.IO).launch {
                 val rp = DatagramPacket(ByteArray(32), 32)
-                s.receive(rp)
+                withContext(Dispatchers.IO) {
+                    s.receive(rp)
+                }
                 val receiveMH =
                     MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                 receiveMH.parseAttributes(rp.data)
@@ -99,46 +103,16 @@ class MainActivity : AppCompatActivity() {
 
                 CoroutineScope(Dispatchers.Main.immediate).launch {
                     binding.mainActivityPublicCredentials.text =
-                        "${ma.address.toString()} : ${ma.port.toString()}"
-                    //binding.mainActivityRouterPortTextView.text = ma.port.toString()
+                        "${ma.address} : ${ma.port}"
                     x++
                 }
             }
         }
 
         binding.mainActivityUDPClientButton.setOnClickListener {
-            if (x == 0) {
-//                CoroutineScope(Dispatchers.IO).launch {
-//                    val p = DatagramPacket(
-//                        data,
-//                        data.size,
-//                        InetAddress.getByName(GOOGLE_STUN_SERVER_IP),
-//                        GOOGLE_STUN_SERVER_PORT
-//                    )
-//                    s.send(p)
-//
-//                    CoroutineScope(Dispatchers.IO).launch {
-//                        val rp = DatagramPacket(ByteArray(32), 32)
-//                        s.receive(rp)
-//                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-//                        receiveMH.parseAttributes(rp.data)
-//                        val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
-//
-//                        CoroutineScope(Dispatchers.Main.immediate).launch {
-//                            binding.mainActivityRouterIpTextView.text = ma.address.toString()
-//                            binding.mainActivityRouterPortTextView.text = ma.port.toString()
-//                            x++
-//                        }
-//                    }
-//                }
-            } else {
-
+            if (x == 1) {
                 val port = mainActivityViewModel.receiverPORT
                 val ip = mainActivityViewModel.receiverIP
-
-//                CoroutineScope(Dispatchers.Main.immediate).launch {
-//                    binding.mainActivityUDPStatusTextView.text = "UDP is configured on $ip : $port"
-//                }
 
                 val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
 
@@ -161,18 +135,11 @@ class MainActivity : AppCompatActivity() {
                 CoroutineScope(Dispatchers.IO).launch {
                     while (true) {
                         val rp = DatagramPacket(ByteArray(512), 512)
-                        s.receive(rp)
+                        withContext(Dispatchers.IO) {
+                            s.receive(rp)
+                        }
                         val data2 = String(rp.data)
-                        Log.d("data", data2)
                         CoroutineScope(Dispatchers.Main.immediate).launch {
-//                            binding.mainActivityReceivedMessage.text = data2
-//                            binding.mainActivityReceivedMessage.setAutoSizeTextTypeUniformWithConfiguration(
-//                                10,
-//                                50,
-//                                1,
-//                                TypedValue.COMPLEX_UNIT_DIP
-//                            )
-
                             addMessage(data2, false)
                         }
                     }

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "861522339141",
+    "project_id": "udppunching",
+    "storage_bucket": "udppunching.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:861522339141:android:e3d133205296360489ca2c",
+        "android_client_info": {
+          "package_name": "com.adreal.tcp_ip"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "861522339141-3ae0rqfd8ahhuphij3070g5npuv8u0bp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adreal.tcp_ip",
+            "certificate_hash": "5825890339b9962c66ef69803a3f7c96fd65be6f"
+          }
+        },
+        {
+          "client_id": "861522339141-ikgc6bm0dko9npaq634gulmgs17jirrk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdpkzzHh5_iVlFKTu-1WMlkcRp-ETD95Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "861522339141-ikgc6bm0dko9npaq634gulmgs17jirrk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
