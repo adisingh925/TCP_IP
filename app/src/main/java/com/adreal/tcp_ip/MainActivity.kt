@@ -31,6 +31,7 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.util.*
+import kotlin.concurrent.timer
 import kotlin.experimental.and
 
 
@@ -66,6 +67,8 @@ class MainActivity : AppCompatActivity() {
         darkTheme()
         setContentView(binding.root)
 
+        mainActivityViewModel.isConnectionEstablished.postValue(false)
+
         initDialog()
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -78,6 +81,26 @@ class MainActivity : AppCompatActivity() {
 
         stunDataReceived.observe(this){
             sendData()
+        }
+
+        mainActivityViewModel.tick.observe(this){
+            if(it != 0.toLong()){
+                Log.d("tick",it.toString())
+                CoroutineScope(Dispatchers.IO).launch {
+                    val p = DatagramPacket(
+                        CONNECTION_ESTABLISH_STRING.toByteArray(), CONNECTION_ESTABLISH_STRING.toByteArray().size,
+                        withContext(Dispatchers.IO) {
+                            InetAddress.getByName(mainActivityViewModel.receiverIP)
+                        }, mainActivityViewModel.receiverPORT
+                    )
+
+                    withContext(Dispatchers.IO) {
+                        socket.send(p)
+                    }
+                }
+            }else{
+                mainActivityViewModel.timer.cancel()
+            }
         }
 
         binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : $PORT"
@@ -152,16 +175,16 @@ class MainActivity : AppCompatActivity() {
                     socket.receive(rp)
                 }
 
-                val data = String(rp.data)
+                val data = String(rp.data, 0, rp.data.indexOf(0))
 
                 Log.d("data received",data)
 
-                if(data.trim() != CONNECTION_ESTABLISH_STRING){
+                if(data != CONNECTION_ESTABLISH_STRING){
                     CoroutineScope(Dispatchers.Main.immediate).launch {
                         addMessage(data, false)
                     }
                 }else{
-                    mainActivityViewModel.isConnectionEstablished = 1
+                    mainActivityViewModel.timer.cancel()
                 }
             }
         }
@@ -251,27 +274,11 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    var x = 0
-                    while(x < 5){
-                        val p = DatagramPacket(
-                            CONNECTION_ESTABLISH_STRING.toByteArray(), CONNECTION_ESTABLISH_STRING.toByteArray().size,
-                            withContext(Dispatchers.IO) {
-                                InetAddress.getByName("127.0.0.1")
-                            }, 60001
-                        )
-
-                        withContext(Dispatchers.IO) {
-                            socket.send(p)
-                        }
-
-                        x++
-                    }
-                }
+                mainActivityViewModel.timer()
             }
         }
 
-        //dialog.setCancelable(false)
+        dialog.setCancelable(true)
         dialog.setContentView(bind.root)
         dialog.show()
     }
