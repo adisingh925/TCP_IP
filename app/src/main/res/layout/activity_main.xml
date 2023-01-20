@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?attr/background_color"
     tools:context=".MainActivity">
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -40,27 +41,16 @@
         app:layout_constraintLeft_toRightOf="@id/mainActivityPrivateCredentials"
          />
 
-    <ScrollView
-        android:id="@+id/mainActivityScrollBar"
-        android:layout_width="0dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="5dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintRight_toLeftOf="@id/mainActivityConfigureButton"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
         app:layout_constraintTop_toBottomOf="@id/mainActivityPublicCredentials"
-        app:layout_constraintBottom_toTopOf="@id/mainActivityUDPClientEditText"
-        >
-
-    <TextView
-        android:id="@+id/mainActivityChatTextView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        />
-
-    </ScrollView>
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/mainActivityUDPClientEditText"
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="16dp"
+        android:layout_height="0dp"/>
 
     <EditText
         android:id="@+id/mainActivityUDPClientEditText"
@@ -78,15 +68,16 @@
         app:layout_constraintLeft_toLeftOf="parent"
          />
 
-    <com.google.android.material.button.MaterialButton
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/mainActivityUDPClientButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/mainActivityUDPClientEditText"
+        app:layout_constraintTop_toTopOf="@id/mainActivityUDPClientEditText"
         app:layout_constraintRight_toRightOf="parent"
         android:text="Send"
+        android:src="@drawable/send"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="24dp"
         app:cornerRadius="30dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

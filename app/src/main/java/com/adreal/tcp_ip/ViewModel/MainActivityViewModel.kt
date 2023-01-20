@@ -3,6 +3,7 @@ package com.adreal.tcp_ip.ViewModel
 import android.os.CountDownTimer
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.adreal.tcp_ip.DataClass.ChatModel
 
 class MainActivityViewModel : ViewModel() {
 
@@ -11,6 +12,7 @@ class MainActivityViewModel : ViewModel() {
     var isConnectionEstablished = MutableLiveData<Boolean>()
     lateinit var timer : CountDownTimer
     var tick = MutableLiveData<Long>()
+    val chatData = MutableLiveData<ChatModel>()
 
     fun timer() {
         timer = object : CountDownTimer(60000, 1000) {

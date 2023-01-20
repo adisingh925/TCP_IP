@@ -14,6 +14,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.adreal.tcp_ip.Adapter.ChatAdapter
+import com.adreal.tcp_ip.DataClass.ChatModel
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
 import com.adreal.tcp_ip.databinding.ConfigureBinding
@@ -53,6 +56,14 @@ class MainActivity : AppCompatActivity() {
         DatagramSocket(PORT)
     }
 
+    private val adapter by lazy {
+        ChatAdapter(this)
+    }
+
+    private val recyclerView by lazy {
+        binding.recyclerView
+    }
+
     private val stunDataReceived = MutableLiveData<Boolean>()
 
     companion object {
@@ -70,40 +81,52 @@ class MainActivity : AppCompatActivity() {
         mainActivityViewModel.isConnectionEstablished.postValue(false)
 
         initDialog()
+        initRecycler()
 
         CoroutineScope(Dispatchers.IO).launch {
             sendBindingRequest()
+        }
+
+        mainActivityViewModel.chatData.observe(this){
+            adapter.setData(it)
         }
 
         binding.mainActivityConfigureButton.setOnClickListener {
             showDialog()
         }
 
-        stunDataReceived.observe(this){
+        stunDataReceived.observe(this) {
             sendData()
         }
 
-        mainActivityViewModel.tick.observe(this){
-            if(it != 0.toLong()){
-                Log.d("tick",it.toString())
+        mainActivityViewModel.tick.observe(this) {
+            if (it != 0.toLong()) {
+                Log.d("tick", it.toString())
                 CoroutineScope(Dispatchers.IO).launch {
                     val p = DatagramPacket(
-                        CONNECTION_ESTABLISH_STRING.toByteArray(), CONNECTION_ESTABLISH_STRING.toByteArray().size,
+                        CONNECTION_ESTABLISH_STRING.toByteArray(),
+                        CONNECTION_ESTABLISH_STRING.toByteArray().size,
                         withContext(Dispatchers.IO) {
                             InetAddress.getByName(mainActivityViewModel.receiverIP)
-                        }, mainActivityViewModel.receiverPORT
+                        },
+                        mainActivityViewModel.receiverPORT
                     )
 
                     withContext(Dispatchers.IO) {
                         socket.send(p)
                     }
                 }
-            }else{
+            } else {
                 mainActivityViewModel.timer.cancel()
             }
         }
 
         binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : $PORT"
+    }
+
+    private fun initRecycler() {
+        recyclerView.adapter = adapter
+        recyclerView.layoutManager = LinearLayoutManager(this)
     }
 
     private fun sendBindingRequest() {
@@ -133,7 +156,8 @@ class MainActivity : AppCompatActivity() {
 
             val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
             receiveMH.parseAttributes(rp.data)
-            val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+            val ma: MappedAddress =
+                receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
             CoroutineScope(Dispatchers.Main.immediate).launch {
                 binding.mainActivityPublicCredentials.text = "${ma.address} : ${ma.port}"
@@ -149,9 +173,9 @@ class MainActivity : AppCompatActivity() {
             val port = mainActivityViewModel.receiverPORT
             val ip = mainActivityViewModel.receiverIP
 
-            val data = binding.mainActivityUDPClientEditText.text.toString().trim().toByteArray()
+            mainActivityViewModel.chatData.postValue(ChatModel(0,binding.mainActivityUDPClientEditText.text.toString().trim(),System.currentTimeMillis()))
 
-            addMessage(binding.mainActivityUDPClientEditText.text.toString(), true)
+            val data = binding.mainActivityUDPClientEditText.text.toString().trim().toByteArray()
 
             binding.mainActivityUDPClientEditText.text.clear()
 
@@ -170,33 +194,22 @@ class MainActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
-                val rp = DatagramPacket(ByteArray(512), 512)
+                val rp = DatagramPacket(ByteArray(60000), 60000)
                 withContext(Dispatchers.IO) {
                     socket.receive(rp)
                 }
 
                 val data = String(rp.data, 0, rp.data.indexOf(0))
 
-                Log.d("data received",data)
+                Log.d("data received", data)
 
-                if(data != CONNECTION_ESTABLISH_STRING){
-                    CoroutineScope(Dispatchers.Main.immediate).launch {
-                        addMessage(data, false)
-                    }
-                }else{
+                if (data != CONNECTION_ESTABLISH_STRING) {
+                    mainActivityViewModel.chatData.postValue(ChatModel(1,data,System.currentTimeMillis()))
+                } else {
                     mainActivityViewModel.timer.cancel()
                 }
             }
         }
-    }
-
-    private fun addMessage(message: String, me: Boolean) {
-        if (me) {
-            binding.mainActivityChatTextView.append("\n\nYou : $message")
-        } else {
-            binding.mainActivityChatTextView.append("\n\nFriend : $message")
-        }
-        binding.mainActivityScrollBar.fullScroll(View.FOCUS_DOWN)
     }
 
     private fun darkTheme() {
@@ -271,7 +284,8 @@ class MainActivity : AppCompatActivity() {
         bind.configureDialogDoneButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT =
+                    bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 mainActivityViewModel.timer()
