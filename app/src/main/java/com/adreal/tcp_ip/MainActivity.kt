@@ -4,6 +4,7 @@ import android.app.Dialog
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.media.*
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -11,6 +12,7 @@ import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
@@ -29,6 +31,8 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.util.*
+import kotlin.experimental.and
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -44,6 +48,12 @@ class MainActivity : AppCompatActivity() {
         ViewModelProvider(this)[MainActivityViewModel::class.java]
     }
 
+    private val socket by lazy {
+        DatagramSocket(PORT)
+    }
+
+    val stunDataReceived = MutableLiveData<Boolean>()
+
     companion object {
         const val PORT = 60001
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
@@ -58,24 +68,25 @@ class MainActivity : AppCompatActivity() {
         initDialog()
 
         CoroutineScope(Dispatchers.IO).launch {
-            bindingRequest()
+            sendBindingRequest()
         }
 
         binding.mainActivityConfigureButton.setOnClickListener {
             showDialog()
         }
 
+        stunDataReceived.observe(this){
+            sendData()
+        }
+
         binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : $PORT"
     }
 
-    private fun bindingRequest() {
+    private fun sendBindingRequest() {
         val sendMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
         val changeRequest = ChangeRequest()
         sendMH.addMessageAttribute(changeRequest)
         val data = sendMH.bytes
-        val s = DatagramSocket(PORT)
-        s.reuseAddress = true
-        var x = 0
 
         CoroutineScope(Dispatchers.IO).launch {
             val p = DatagramPacket(
@@ -87,62 +98,62 @@ class MainActivity : AppCompatActivity() {
                 GOOGLE_STUN_SERVER_PORT
             )
             withContext(Dispatchers.IO) {
-                s.send(p)
+                socket.send(p)
             }
 
-            CoroutineScope(Dispatchers.IO).launch {
-                val rp = DatagramPacket(ByteArray(32), 32)
-                withContext(Dispatchers.IO) {
-                    s.receive(rp)
-                }
-                val receiveMH =
-                    MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-                receiveMH.parseAttributes(rp.data)
-                val ma: MappedAddress =
-                    receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+            val rp = DatagramPacket(ByteArray(32), 32)
 
-                CoroutineScope(Dispatchers.Main.immediate).launch {
-                    binding.mainActivityPublicCredentials.text =
-                        "${ma.address} : ${ma.port}"
-                    x++
+            withContext(Dispatchers.IO) {
+                socket.receive(rp)
+            }
+
+            val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+            receiveMH.parseAttributes(rp.data)
+            val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                binding.mainActivityPublicCredentials.text = "${ma.address} : ${ma.port}"
+                stunDataReceived.postValue(true)
+            }
+        }
+    }
+
+    private fun sendData() {
+        binding.mainActivityUDPClientButton.setOnClickListener {
+
+            val port = mainActivityViewModel.receiverPORT
+            val ip = mainActivityViewModel.receiverIP
+
+            val data = binding.mainActivityUDPClientEditText.text.toString().trim().toByteArray()
+
+            addMessage(binding.mainActivityUDPClientEditText.text.toString(), true)
+
+            binding.mainActivityUDPClientEditText.text.clear()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                val p = DatagramPacket(
+                    data, data.size,
+                    withContext(Dispatchers.IO) {
+                        InetAddress.getByName(ip)
+                    }, port
+                )
+                withContext(Dispatchers.IO) {
+                    socket.send(p)
                 }
             }
         }
 
-        binding.mainActivityUDPClientButton.setOnClickListener {
-            if (x == 1) {
-                val port = mainActivityViewModel.receiverPORT
-                val ip = mainActivityViewModel.receiverIP
-
-                val data1 = binding.mainActivityUDPClientEditText.text.toString().toByteArray()
-
-                addMessage(binding.mainActivityUDPClientEditText.text.toString(), true)
-
-                binding.mainActivityUDPClientEditText.text.clear()
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    val p = DatagramPacket(
-                        data1, data1.size,
-                        withContext(Dispatchers.IO) {
-                            InetAddress.getByName(ip)
-                        }, port
-                    )
-                    withContext(Dispatchers.IO) {
-                        s.send(p)
-                    }
+        CoroutineScope(Dispatchers.IO).launch {
+            while (true) {
+                val rp = DatagramPacket(ByteArray(512), 512)
+                withContext(Dispatchers.IO) {
+                    socket.receive(rp)
                 }
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    while (true) {
-                        val rp = DatagramPacket(ByteArray(512), 512)
-                        withContext(Dispatchers.IO) {
-                            s.receive(rp)
-                        }
-                        val data2 = String(rp.data)
-                        CoroutineScope(Dispatchers.Main.immediate).launch {
-                            addMessage(data2, false)
-                        }
-                    }
+                val data = String(rp.data)
+
+                CoroutineScope(Dispatchers.Main.immediate).launch {
+                    addMessage(data, false)
                 }
             }
         }
@@ -213,7 +224,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } catch (_: Exception) {
-        } // for now eat exceptions
+
+        }
         return ""
     }
 
