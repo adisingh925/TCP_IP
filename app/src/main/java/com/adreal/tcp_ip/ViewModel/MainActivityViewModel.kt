@@ -12,7 +12,8 @@ class MainActivityViewModel : ViewModel() {
     var isConnectionEstablished = MutableLiveData<Boolean>()
     lateinit var timer : CountDownTimer
     var tick = MutableLiveData<Long>()
-    val chatData = MutableLiveData<ChatModel>()
+    val chatData = ArrayList<ChatModel>()
+    val chatList = MutableLiveData<ArrayList<ChatModel>>()
 
     fun timer() {
         timer = object : CountDownTimer(60000, 1000) {

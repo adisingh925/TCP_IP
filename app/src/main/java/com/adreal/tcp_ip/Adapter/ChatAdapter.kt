@@ -86,8 +86,8 @@ class ChatAdapter(private val context: Context) : RecyclerView.Adapter<RecyclerV
         return formatter.format(calendar.time)
     }
 
-    fun setData(data: ChatModel) {
-        this.messageList.add(data)
-        notifyDataSetChanged()
+    fun setData(data: ArrayList<ChatModel>) {
+        this.messageList = data
+        notifyItemInserted(messageList.size)
     }
 }

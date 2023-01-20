@@ -87,8 +87,9 @@ class MainActivity : AppCompatActivity() {
             sendBindingRequest()
         }
 
-        mainActivityViewModel.chatData.observe(this){
+        mainActivityViewModel.chatList.observe(this){
             adapter.setData(it)
+            recyclerView.scrollToPosition(it.size - 1)
         }
 
         binding.mainActivityConfigureButton.setOnClickListener {
@@ -173,9 +174,12 @@ class MainActivity : AppCompatActivity() {
             val port = mainActivityViewModel.receiverPORT
             val ip = mainActivityViewModel.receiverIP
 
-            mainActivityViewModel.chatData.postValue(ChatModel(0,binding.mainActivityUDPClientEditText.text.toString().trim(),System.currentTimeMillis()))
+            val text = binding.mainActivityUDPClientEditText.text.toString().trim()
 
-            val data = binding.mainActivityUDPClientEditText.text.toString().trim().toByteArray()
+            mainActivityViewModel.chatData.add(ChatModel(0,text,System.currentTimeMillis()))
+            mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+
+            val data = text.toByteArray()
 
             binding.mainActivityUDPClientEditText.text?.clear()
 
@@ -204,7 +208,8 @@ class MainActivity : AppCompatActivity() {
                 Log.d("data received", data)
 
                 if (data != CONNECTION_ESTABLISH_STRING) {
-                    mainActivityViewModel.chatData.postValue(ChatModel(1,data,System.currentTimeMillis()))
+                    mainActivityViewModel.chatData.add(ChatModel(1,data,System.currentTimeMillis()))
+                    mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
                 } else {
                     mainActivityViewModel.timer.cancel()
                 }
