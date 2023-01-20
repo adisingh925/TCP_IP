@@ -177,7 +177,7 @@ class MainActivity : AppCompatActivity() {
 
             val data = binding.mainActivityUDPClientEditText.text.toString().trim().toByteArray()
 
-            binding.mainActivityUDPClientEditText.text.clear()
+            binding.mainActivityUDPClientEditText.text?.clear()
 
             CoroutineScope(Dispatchers.IO).launch {
                 val p = DatagramPacket(

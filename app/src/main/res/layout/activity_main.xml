@@ -47,33 +47,42 @@
         android:layout_width="match_parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/mainActivityUDPClientEditText"
+        app:layout_constraintBottom_toTopOf="@id/mainActivityUDPClientEditTextLayout"
         android:layout_marginTop="5dp"
         android:layout_marginBottom="16dp"
         android:layout_height="0dp"/>
 
-    <EditText
-        android:id="@+id/mainActivityUDPClientEditText"
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/mainActivityUDPClientEditTextLayout"
         android:layout_width="0dp"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        android:textSize="15sp"
-        android:maxLength="2000"
-        android:hint="Message"
         android:isScrollContainer="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintRight_toLeftOf="@id/mainActivityUDPClientButton"
         app:layout_constraintLeft_toLeftOf="parent"
-         />
+        android:hint="Message">
+
+        <!--this is the actual edit text which takes the input-->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/mainActivityUDPClientEditText"
+            android:layout_width="match_parent"
+            android:maxHeight="200dp"
+            android:textSize="15sp"
+            android:maxLength="2000"
+            android:scrollbars="vertical"
+            android:layout_height="wrap_content" />
+
+    </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/mainActivityUDPClientButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="@id/mainActivityUDPClientEditText"
-        app:layout_constraintTop_toTopOf="@id/mainActivityUDPClientEditText"
+        app:layout_constraintBottom_toBottomOf="@id/mainActivityUDPClientEditTextLayout"
         app:layout_constraintRight_toRightOf="parent"
         android:text="Send"
         android:src="@drawable/send"
