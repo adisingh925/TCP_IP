@@ -37,7 +37,6 @@ import java.util.*
 import kotlin.concurrent.timer
 import kotlin.experimental.and
 
-
 class MainActivity : AppCompatActivity() {
 
     private val binding by lazy {
@@ -157,8 +156,7 @@ class MainActivity : AppCompatActivity() {
 
             val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
             receiveMH.parseAttributes(rp.data)
-            val ma: MappedAddress =
-                receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+            val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
             CoroutineScope(Dispatchers.Main.immediate).launch {
                 binding.mainActivityPublicCredentials.text = "${ma.address} : ${ma.port}"
