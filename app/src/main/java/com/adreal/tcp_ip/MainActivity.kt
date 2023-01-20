@@ -52,12 +52,13 @@ class MainActivity : AppCompatActivity() {
         DatagramSocket(PORT)
     }
 
-    val stunDataReceived = MutableLiveData<Boolean>()
+    private val stunDataReceived = MutableLiveData<Boolean>()
 
     companion object {
         const val PORT = 60001
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
+        const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,6 +120,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendData() {
+
         binding.mainActivityUDPClientButton.setOnClickListener {
 
             val port = mainActivityViewModel.receiverPORT
@@ -152,8 +154,14 @@ class MainActivity : AppCompatActivity() {
 
                 val data = String(rp.data)
 
-                CoroutineScope(Dispatchers.Main.immediate).launch {
-                    addMessage(data, false)
+                Log.d("data received",data)
+
+                if(data.trim() != CONNECTION_ESTABLISH_STRING){
+                    CoroutineScope(Dispatchers.Main.immediate).launch {
+                        addMessage(data, false)
+                    }
+                }else{
+                    mainActivityViewModel.isConnectionEstablished = 1
                 }
             }
         }
@@ -240,9 +248,26 @@ class MainActivity : AppCompatActivity() {
         bind.configureDialogDoneButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT =
-                    bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    var x = 0
+                    while(x < 5){
+                        val p = DatagramPacket(
+                            CONNECTION_ESTABLISH_STRING.toByteArray(), CONNECTION_ESTABLISH_STRING.toByteArray().size,
+                            withContext(Dispatchers.IO) {
+                                InetAddress.getByName("127.0.0.1")
+                            }, 60001
+                        )
+
+                        withContext(Dispatchers.IO) {
+                            socket.send(p)
+                        }
+
+                        x++
+                    }
+                }
             }
         }
 

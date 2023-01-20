@@ -6,4 +6,5 @@ class MainActivityViewModel : ViewModel() {
 
     var receiverIP : String = ""
     var receiverPORT : Int = 0
+    var isConnectionEstablished = 0
 }
