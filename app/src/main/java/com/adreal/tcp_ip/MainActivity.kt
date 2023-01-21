@@ -175,7 +175,7 @@ class MainActivity : AppCompatActivity() {
 
                 while(true){
                     // Wait for the STUN response
-                    val response = ByteArray(60000)
+                    val response = ByteArray(65535)
                     inputStream.read(response)
 
                     val data = String(response, 0, response.indexOf(0))

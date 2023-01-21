@@ -84,6 +84,7 @@
             android:maxHeight="300dp"
             android:textSize="15sp"
             android:maxLength="80000"
+            android:gravity="start"
             android:scrollbars="vertical"
             android:layout_height="wrap_content" />
 
