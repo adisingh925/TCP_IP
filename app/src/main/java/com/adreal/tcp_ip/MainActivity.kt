@@ -342,9 +342,10 @@ class MainActivity : AppCompatActivity() {
                 val receivedData = String(rp.data,0,rp.data.indexOf(0))
 
                 if(receivedData.toByteArray().size < 512){
-                    udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
 
                     if (receivedData != CONNECTION_ESTABLISH_STRING) {
+
+                        udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
 
                         mainActivityViewModel.timer.cancel()
 
