@@ -17,7 +17,7 @@ class MainActivityViewModel : ViewModel() {
     var mode : Int = 1
 
     fun timer() {
-        timer = object : CountDownTimer(60000, 1000) {
+        timer = object : CountDownTimer(10000, 500) {
             override fun onTick(millisUntilFinished: Long) {
                 tick.postValue(millisUntilFinished)
             }

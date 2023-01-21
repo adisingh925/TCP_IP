@@ -297,6 +297,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendData() {
+        val udpReceiverData = java.lang.StringBuilder()
+
         binding.mainActivityUDPClientButton.setOnClickListener {
 
             val port = mainActivityViewModel.receiverPORT
@@ -307,45 +309,55 @@ class MainActivity : AppCompatActivity() {
             mainActivityViewModel.chatData.add(ChatModel(0, text, System.currentTimeMillis()))
             mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
 
-            val data = text.toByteArray()
+            binding.mainActivityUDPClientEditText.setText("")
 
-            binding.mainActivityUDPClientEditText.text?.clear()
+            val chunks = text.chunked(512)
 
-            CoroutineScope(Dispatchers.IO).launch {
-                val p = DatagramPacket(
-                    data, data.size,
+            for(chunk in chunks){
+                CoroutineScope(Dispatchers.IO).launch {
+                    val p = DatagramPacket(
+                        chunk.toByteArray(), chunk.toByteArray().size,
+                        withContext(Dispatchers.IO) {
+                            InetAddress.getByName(ip)
+                        }, port
+                    )
                     withContext(Dispatchers.IO) {
-                        InetAddress.getByName(ip)
-                    }, port
-                )
-                withContext(Dispatchers.IO) {
-                    socket.send(p)
+                        socket.send(p)
+                    }
                 }
             }
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
-                val rp = DatagramPacket(ByteArray(60000), 60000)
+                val rp = DatagramPacket(ByteArray(512), 512)
                 withContext(Dispatchers.IO) {
                     socket.receive(rp)
                 }
 
-                val data = String(rp.data, 0, rp.data.indexOf(0))
+                val receivedData = String(rp.data,0,rp.data.indexOf(0))
 
-                Log.d("data received", data)
+                Log.d("data received", String(rp.data,0,rp.data.indexOf(0)))
 
-                if (data != CONNECTION_ESTABLISH_STRING) {
-                    mainActivityViewModel.chatData.add(
-                        ChatModel(
-                            1,
-                            data,
-                            System.currentTimeMillis()
+                if(receivedData.toByteArray().size < 512){
+                    udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
+
+                    if (receivedData != CONNECTION_ESTABLISH_STRING) {
+                        mainActivityViewModel.chatData.add(
+                            ChatModel(
+                                1,
+                                udpReceiverData.toString(),
+                                System.currentTimeMillis()
+                            )
                         )
-                    )
-                    mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
-                } else {
-                    mainActivityViewModel.timer.cancel()
+                        mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+
+                        udpReceiverData.clear()
+                    } else {
+//                        mainActivityViewModel.timer.cancel()
+                    }
+                }else{
+                    udpReceiverData.append(String(rp.data,0,rp.data.size))
                 }
             }
         }
