@@ -74,8 +74,8 @@ class MainActivity : AppCompatActivity() {
     private val tcpStunDataReceived = MutableLiveData<Boolean>()
 
     companion object {
-        const val PORT = 60004
-        const val TCP_PORT = 60045
+        const val PORT = 60001
+        const val TCP_PORT = 50001
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -115,9 +115,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         tcpStunDataReceived.observe(this){
-            CoroutineScope(Dispatchers.IO).launch {
-                sendTcpData()
-            }
+//            CoroutineScope(Dispatchers.IO).launch {
+//                sendTcpData()
+//            }
         }
 
         mainActivityViewModel.tick.observe(this) {
@@ -161,38 +161,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.tcpConnect.setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
-                withContext(Dispatchers.IO) {
-                    tcpSocket.connect(
-                        InetSocketAddress(
-                            mainActivityViewModel.receiverIP,
-                            mainActivityViewModel.receiverPORT
+        CoroutineScope(Dispatchers.IO).launch {
+            withContext(Dispatchers.IO) {
+                tcpSocket.connect(
+                    InetSocketAddress(
+                        mainActivityViewModel.receiverIP,
+                        mainActivityViewModel.receiverPORT
+                    )
+                )
+
+                inputStream = DataInputStream(tcpSocket.getInputStream())
+                outputStream = DataOutputStream(tcpSocket.getOutputStream())
+
+                while(true){
+                    // Wait for the STUN response
+                    val response = ByteArray(1024)
+                    inputStream.read(response)
+
+                    val data = String(response, 0, response.indexOf(0))
+
+                    mainActivityViewModel.chatData.add(
+                        ChatModel(
+                            1,
+                            data,
+                            System.currentTimeMillis()
                         )
                     )
-
-                    inputStream = DataInputStream(tcpSocket.getInputStream())
-                    outputStream = DataOutputStream(tcpSocket.getOutputStream())
-
-                    while(true){
-                        // Wait for the STUN response
-                        val response = ByteArray(1024)
-                        inputStream.read(response)
-
-                        val data = String(response, 0, response.indexOf(0))
-
-                        mainActivityViewModel.chatData.add(
-                            ChatModel(
-                                1,
-                                data,
-                                System.currentTimeMillis()
-                            )
-                        )
-                        mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
-                    }
+                    mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
                 }
             }
         }
+
+//        binding.tcpConnect.setOnClickListener {
+//
+//        }
 
         binding.mainActivityUDPClientButton.setOnClickListener {
             Log.d("tcp button","working")
@@ -414,14 +416,26 @@ class MainActivity : AppCompatActivity() {
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         val bind = ConfigureBinding.inflate(layoutInflater)
 
-        bind.configureDialogDoneButton.setOnClickListener {
+        bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT =
-                    bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 mainActivityViewModel.timer()
+                sendData()
+            }
+        }
+
+        bind.configureTcpButton.setOnClickListener {
+            if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
+                mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                dialog.dismiss()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    sendTcpData()
+                }
             }
         }
 
