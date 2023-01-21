@@ -178,6 +178,8 @@ class MainActivity : AppCompatActivity() {
                     val response = ByteArray(512)
                     val byteRead = inputStream.read(response)
 
+                    Log.d("size",byteRead.toString())
+
                     if(byteRead < response.size){
 
                         data.append(String(response, 0, byteRead))
@@ -343,6 +345,9 @@ class MainActivity : AppCompatActivity() {
                     udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
 
                     if (receivedData != CONNECTION_ESTABLISH_STRING) {
+
+                        mainActivityViewModel.timer.cancel()
+
                         mainActivityViewModel.chatData.add(
                             ChatModel(
                                 1,
