@@ -4,7 +4,6 @@ import android.app.Dialog
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.media.*
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -25,19 +24,14 @@ import de.javawi.jstun.attribute.MappedAddress
 import de.javawi.jstun.attribute.MessageAttributeInterface
 import de.javawi.jstun.header.MessageHeader
 import de.javawi.jstun.header.MessageHeaderInterface
-import io.ktor.network.selector.*
-import io.ktor.network.sockets.*
-import io.ktor.util.*
-import io.ktor.utils.io.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.*
-import java.net.Socket
 import java.util.*
-import kotlin.concurrent.timer
-import kotlin.experimental.and
-import kotlin.system.exitProcess
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,6 +51,10 @@ class MainActivity : AppCompatActivity() {
         DatagramSocket(PORT)
     }
 
+    private val tcpSocket by lazy {
+        Socket()
+    }
+
     private val adapter by lazy {
         ChatAdapter(this)
     }
@@ -65,11 +63,15 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView
     }
 
+    lateinit var inputStream : DataInputStream
+    lateinit var outputStream : DataOutputStream
+
     private val stunDataReceived = MutableLiveData<Boolean>()
+    private val tcpStunDataReceived = MutableLiveData<Boolean>()
 
     companion object {
-        const val PORT = 60001
-        const val TCP_PORT = 60002
+        const val PORT = 60004
+        const val TCP_PORT = 60045
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -101,11 +103,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         CoroutineScope(Dispatchers.IO).launch {
-            sendTcpData()
+            sendTcpBindingRequest()
         }
 
         stunDataReceived.observe(this) {
-            sendData()
+//            sendData()
+        }
+
+        tcpStunDataReceived.observe(this){
+            CoroutineScope(Dispatchers.IO).launch {
+                sendTcpData()
+            }
         }
 
         mainActivityViewModel.tick.observe(this) {
@@ -134,20 +142,75 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendTcpData() {
+
+        val tcpSocket = Socket()
+        tcpSocket.reuseAddress = true
+        tcpSocket.bind(InetSocketAddress(TCP_PORT))
+
+        binding.tcpConnect.setOnClickListener {
+            CoroutineScope(Dispatchers.IO).launch {
+                withContext(Dispatchers.IO) {
+                    tcpSocket.connect(
+                        InetSocketAddress(
+                            mainActivityViewModel.receiverIP,
+                            mainActivityViewModel.receiverPORT
+                        )
+                    )
+
+                    inputStream = DataInputStream(tcpSocket.getInputStream())
+                    outputStream = DataOutputStream(tcpSocket.getOutputStream())
+
+                    while(true){
+                        // Wait for the STUN response
+                        val response = ByteArray(1024)
+                        inputStream.read(response)
+
+                        val data = String(response, 0, response.indexOf(0))
+
+                        mainActivityViewModel.chatData.add(
+                            ChatModel(
+                                1,
+                                data,
+                                System.currentTimeMillis()
+                            )
+                        )
+                        mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+                    }
+                }
+            }
+        }
+
+        binding.mainActivityUDPClientButton.setOnClickListener {
+
+            val data = binding.mainActivityUDPClientEditText.text?.trim().toString()
+            mainActivityViewModel.chatData.add(ChatModel(0, data, System.currentTimeMillis()))
+            mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+            binding.mainActivityUDPClientEditText.text?.clear()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                withContext(Dispatchers.IO) {
+                    outputStream.write(data.toByteArray())
+                }
+                withContext(Dispatchers.IO) {
+                    outputStream.flush()
+                }
+            }
+        }
+    }
+
+    private fun sendTcpBindingRequest() {
         val sendMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
         val changeRequest = ChangeRequest()
         sendMH.addMessageAttribute(changeRequest)
         val data = sendMH.bytes
 
         // Create a socket to connect to the STUN server
-        val socket = Socket()
-        socket.reuseAddress = true
+        tcpSocket.reuseAddress = true
+        tcpSocket.bind(InetSocketAddress(TCP_PORT))
+        tcpSocket.connect(InetSocketAddress(STUNTMAN_STUN_SERVER_IP, STUNTMAN_STUN_SERVER_PORT_TCP))
 
-        socket.bind(InetSocketAddress(TCP_PORT))
-        socket.connect(InetSocketAddress(STUNTMAN_STUN_SERVER_IP, STUNTMAN_STUN_SERVER_PORT_TCP))
-
-        val inputStream = DataInputStream(socket.getInputStream())
-        val outputStream = DataOutputStream(socket.getOutputStream())
+        val inputStream = DataInputStream(tcpSocket.getInputStream())
+        val outputStream = DataOutputStream(tcpSocket.getOutputStream())
 
         // Send the STUN request using TCP
         outputStream.write(data)
@@ -164,10 +227,11 @@ class MainActivity : AppCompatActivity() {
         // Process the response
         CoroutineScope(Dispatchers.Main.immediate).launch {
             binding.mainActivityTCPPublicCredentials.text = "${ma.address} : ${ma.port}"
+            tcpStunDataReceived.postValue(true)
         }
 
         // Close the socket
-        socket.close()
+        tcpSocket.close()
     }
 
     private fun initRecycler() {
