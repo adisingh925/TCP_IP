@@ -14,6 +14,7 @@ class MainActivityViewModel : ViewModel() {
     var tick = MutableLiveData<Long>()
     val chatData = ArrayList<ChatModel>()
     val chatList = MutableLiveData<ArrayList<ChatModel>>()
+    var mode : Int = 1
 
     fun timer() {
         timer = object : CountDownTimer(60000, 1000) {

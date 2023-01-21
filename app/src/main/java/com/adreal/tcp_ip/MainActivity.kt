@@ -25,17 +25,19 @@ import de.javawi.jstun.attribute.MappedAddress
 import de.javawi.jstun.attribute.MessageAttributeInterface
 import de.javawi.jstun.header.MessageHeader
 import de.javawi.jstun.header.MessageHeaderInterface
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetAddress
-import java.net.NetworkInterface
+import io.ktor.network.selector.*
+import io.ktor.network.sockets.*
+import io.ktor.util.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.*
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.net.*
+import java.net.Socket
 import java.util.*
 import kotlin.concurrent.timer
 import kotlin.experimental.and
+import kotlin.system.exitProcess
 
 class MainActivity : AppCompatActivity() {
 
@@ -67,9 +69,12 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val PORT = 60001
+        const val TCP_PORT = 60002
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
+        const val STUNTMAN_STUN_SERVER_IP = "18.191.223.12"
+        const val STUNTMAN_STUN_SERVER_PORT_TCP = 3478
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,7 +91,7 @@ class MainActivity : AppCompatActivity() {
             sendBindingRequest()
         }
 
-        mainActivityViewModel.chatList.observe(this){
+        mainActivityViewModel.chatList.observe(this) {
             adapter.setData(it)
             recyclerView.scrollToPosition(it.size - 1)
         }
@@ -96,7 +101,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         stunDataReceived.observe(this) {
-            sendData()
+            if (mainActivityViewModel.mode == 0) {
+                sendData()
+            } else {
+                CoroutineScope(Dispatchers.IO).launch {
+                    sendTcpData()
+                }
+            }
         }
 
         mainActivityViewModel.tick.observe(this) {
@@ -122,6 +133,43 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.mainActivityPrivateCredentials.text = "${getIPAddress(true)} : $PORT"
+    }
+
+    private fun sendTcpData() {
+        val sendMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+        val changeRequest = ChangeRequest()
+        sendMH.addMessageAttribute(changeRequest)
+        val data = sendMH.bytes
+
+        // Create a socket to connect to the STUN server
+        val socket = Socket()
+        socket.reuseAddress = true
+
+        socket.bind(InetSocketAddress(TCP_PORT))
+        socket.connect(InetSocketAddress(STUNTMAN_STUN_SERVER_IP, STUNTMAN_STUN_SERVER_PORT_TCP))
+
+        val inputStream = DataInputStream(socket.getInputStream())
+        val outputStream = DataOutputStream(socket.getOutputStream())
+
+        // Send the STUN request using TCP
+        outputStream.write(data)
+        outputStream.flush()
+
+        // Wait for the STUN response
+        val response = ByteArray(1024)
+        inputStream.read(response)
+
+        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+        receiveMH.parseAttributes(response)
+        val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+
+        // Process the response
+        Log.d("tcp response","${ma.address} : ${ma.port}")
+
+        // Close the socket
+        socket.shutdownInput()
+        socket.shutdownOutput()
+        socket.close()
     }
 
     private fun initRecycler() {
@@ -166,7 +214,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendData() {
-
         binding.mainActivityUDPClientButton.setOnClickListener {
 
             val port = mainActivityViewModel.receiverPORT
@@ -174,7 +221,7 @@ class MainActivity : AppCompatActivity() {
 
             val text = binding.mainActivityUDPClientEditText.text.toString().trim()
 
-            mainActivityViewModel.chatData.add(ChatModel(0,text,System.currentTimeMillis()))
+            mainActivityViewModel.chatData.add(ChatModel(0, text, System.currentTimeMillis()))
             mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
 
             val data = text.toByteArray()
@@ -206,7 +253,13 @@ class MainActivity : AppCompatActivity() {
                 Log.d("data received", data)
 
                 if (data != CONNECTION_ESTABLISH_STRING) {
-                    mainActivityViewModel.chatData.add(ChatModel(1,data,System.currentTimeMillis()))
+                    mainActivityViewModel.chatData.add(
+                        ChatModel(
+                            1,
+                            data,
+                            System.currentTimeMillis()
+                        )
+                    )
                     mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
                 } else {
                     mainActivityViewModel.timer.cancel()
