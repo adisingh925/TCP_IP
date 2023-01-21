@@ -100,14 +100,12 @@ class MainActivity : AppCompatActivity() {
             showDialog()
         }
 
+        CoroutineScope(Dispatchers.IO).launch {
+            sendTcpData()
+        }
+
         stunDataReceived.observe(this) {
-            if (mainActivityViewModel.mode == 0) {
-                sendData()
-            } else {
-                CoroutineScope(Dispatchers.IO).launch {
-                    sendTcpData()
-                }
-            }
+            sendData()
         }
 
         mainActivityViewModel.tick.observe(this) {
@@ -164,11 +162,11 @@ class MainActivity : AppCompatActivity() {
         val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
         // Process the response
-        Log.d("tcp response","${ma.address} : ${ma.port}")
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            binding.mainActivityTCPPublicCredentials.text = "${ma.address} : ${ma.port}"
+        }
 
         // Close the socket
-        socket.shutdownInput()
-        socket.shutdownOutput()
         socket.close()
     }
 
