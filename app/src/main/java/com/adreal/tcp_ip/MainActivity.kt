@@ -55,6 +55,10 @@ class MainActivity : AppCompatActivity() {
         Socket()
     }
 
+//    private val serverSocket by lazy {
+//        ServerSocket()
+//    }
+
     private val adapter by lazy {
         ChatAdapter(this)
     }
@@ -142,10 +146,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendTcpData() {
+        Log.d("tcp function","running")
 
         val tcpSocket = Socket()
         tcpSocket.reuseAddress = true
         tcpSocket.bind(InetSocketAddress(TCP_PORT))
+
+        val tcpServerSocket = ServerSocket(TCP_PORT)
+        tcpServerSocket.reuseAddress = true
+
+        CoroutineScope(Dispatchers.IO).launch {
+            withContext(Dispatchers.IO) {
+                tcpServerSocket.accept()
+            }
+        }
 
         binding.tcpConnect.setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
@@ -181,6 +195,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.mainActivityUDPClientButton.setOnClickListener {
+            Log.d("tcp button","working")
 
             val data = binding.mainActivityUDPClientEditText.text?.trim().toString()
             mainActivityViewModel.chatData.add(ChatModel(0, data, System.currentTimeMillis()))
