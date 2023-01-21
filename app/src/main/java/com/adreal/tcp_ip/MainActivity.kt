@@ -327,19 +327,19 @@ class MainActivity : AppCompatActivity() {
                         socket.send(p)
                     }
                 }
+
+                Log.d("chunk size",chunk.toByteArray().size.toString())
             }
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
-                val rp = DatagramPacket(ByteArray(512), 512)
+                val rp = DatagramPacket(ByteArray(1024), 1024)
                 withContext(Dispatchers.IO) {
                     socket.receive(rp)
                 }
 
                 val receivedData = String(rp.data,0,rp.data.indexOf(0))
-
-                Log.d("data received", String(rp.data,0,rp.data.indexOf(0)))
 
                 if(receivedData.toByteArray().size < 512){
                     udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
@@ -358,11 +358,9 @@ class MainActivity : AppCompatActivity() {
                         mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
 
                         udpReceiverData.clear()
-                    } else {
-//                        mainActivityViewModel.timer.cancel()
                     }
                 }else{
-                    udpReceiverData.append(String(rp.data,0,rp.data.size))
+                    udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
                 }
             }
         }
