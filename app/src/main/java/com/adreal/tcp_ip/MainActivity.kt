@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val PORT = 60001
-        const val TCP_PORT = 50001
+        const val TCP_PORT = 50008
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendTcpData() {
-        Log.d("tcp function","running")
+        val data = java.lang.StringBuilder()
 
         val tcpSocket = Socket()
         tcpSocket.reuseAddress = true
@@ -175,38 +175,42 @@ class MainActivity : AppCompatActivity() {
 
                 while(true){
                     // Wait for the STUN response
-                    val response = ByteArray(65535)
-                    inputStream.read(response)
+                    val response = ByteArray(512)
+                    val byteRead = inputStream.read(response)
 
-                    val data = String(response, 0, response.indexOf(0))
+                    if(byteRead < response.size){
 
-                    mainActivityViewModel.chatData.add(
-                        ChatModel(
-                            1,
-                            data,
-                            System.currentTimeMillis()
+                        data.append(String(response, 0, byteRead))
+
+                        mainActivityViewModel.chatData.add(
+                            ChatModel(
+                                1,
+                                data.toString(),
+                                System.currentTimeMillis()
+                            )
                         )
-                    )
-                    mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+                        mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+
+                        data.clear()
+                    }else{
+                        data.append(String(response, 0, byteRead))
+                    }
                 }
             }
         }
 
-//        binding.tcpConnect.setOnClickListener {
-//
-//        }
-
         binding.mainActivityUDPClientButton.setOnClickListener {
-            Log.d("tcp button","working")
-
             val data = binding.mainActivityUDPClientEditText.text?.trim().toString()
             mainActivityViewModel.chatData.add(ChatModel(0, data, System.currentTimeMillis()))
             mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
-            binding.mainActivityUDPClientEditText.text?.clear()
+            binding.mainActivityUDPClientEditText.setText("")
 
             CoroutineScope(Dispatchers.IO).launch {
                 withContext(Dispatchers.IO) {
-                    outputStream.write(data.toByteArray())
+                    val chunks = data.chunked(512)
+                    for(i in chunks){
+                        outputStream.write(i.toByteArray())
+                    }
                 }
                 withContext(Dispatchers.IO) {
                     outputStream.flush()

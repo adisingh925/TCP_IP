@@ -71,6 +71,7 @@
         android:layout_marginEnd="16dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
+        android:gravity="left"
         android:isScrollContainer="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintRight_toLeftOf="@id/mainActivityUDPClientButton"
@@ -83,7 +84,7 @@
             android:layout_width="match_parent"
             android:maxHeight="300dp"
             android:textSize="15sp"
-            android:maxLength="80000"
+            android:maxLength="100000"
             android:gravity="start"
             android:scrollbars="vertical"
             android:layout_height="wrap_content" />
