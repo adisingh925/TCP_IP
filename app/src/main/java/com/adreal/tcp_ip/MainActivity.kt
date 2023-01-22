@@ -8,9 +8,11 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.Window
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,6 +21,7 @@ import com.adreal.tcp_ip.DataClass.ChatModel
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
 import com.adreal.tcp_ip.databinding.ConfigureBinding
+import com.google.android.material.snackbar.Snackbar
 import de.javawi.jstun.attribute.ChangeRequest
 import de.javawi.jstun.attribute.MappedAddress
 import de.javawi.jstun.attribute.MessageAttributeInterface
@@ -75,7 +78,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val PORT = 60001
-        const val TCP_PORT = 50001
+        const val TCP_PORT = 50002
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -88,7 +91,9 @@ class MainActivity : AppCompatActivity() {
         darkTheme()
         setContentView(binding.root)
 
-        mainActivityViewModel.isConnectionEstablished.postValue(false)
+        binding.mainActivityUDPClientEditText.isEnabled = false
+        binding.mainActivityUDPClientButton.isEnabled = false
+        binding.mainActivityLinesrProgressIndicator.isVisible = false
 
         initDialog()
         initRecycler()
@@ -120,6 +125,17 @@ class MainActivity : AppCompatActivity() {
 //            }
         }
 
+        mainActivityViewModel.isConnectionEstablished.observe(this@MainActivity){
+            if(it){
+                mainActivityViewModel.timer.cancel()
+                mainActivityViewModel.timer(5000)
+                Toast.makeText(this,"Connection Established",Toast.LENGTH_SHORT).show()
+                binding.mainActivityLinesrProgressIndicator.isVisible = false
+                binding.mainActivityUDPClientEditText.isEnabled = true
+                binding.mainActivityUDPClientButton.isEnabled = true
+            }
+        }
+
         mainActivityViewModel.tick.observe(this) {
             if (it != 0.toLong()) {
                 Log.d("tick", it.toString())
@@ -146,57 +162,88 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendTcpData() {
-        val data = java.lang.StringBuilder()
+        displayProgressIndicator(true)
 
         val tcpSocket = Socket()
         tcpSocket.reuseAddress = true
-        tcpSocket.bind(InetSocketAddress(TCP_PORT))
 
-        val tcpServerSocket = ServerSocket(TCP_PORT)
+        try {
+            tcpSocket.bind(InetSocketAddress(TCP_PORT))
+        }catch(e : Exception){
+            Log.d("client socket bind failed",e.message.toString())
+            createToast(e.message.toString())
+        }
+
+        val tcpServerSocket = ServerSocket()
         tcpServerSocket.reuseAddress = true
+
+        try {
+            tcpServerSocket.bind(InetSocketAddress(TCP_PORT))
+        }catch (e : Exception){
+            Log.d("server socket bind failed",e.message.toString())
+            createToast(e.message.toString())
+        }
 
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.IO) {
-                tcpServerSocket.accept()
+                try {
+                    tcpServerSocket.accept()
+                }catch (e : Exception){
+                    displayProgressIndicator(false)
+                    createToast(e.message.toString())
+                    Log.d("TCP accept failed",e.message.toString())
+                }
             }
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.IO) {
-                tcpSocket.connect(
-                    InetSocketAddress(
-                        mainActivityViewModel.receiverIP,
-                        mainActivityViewModel.receiverPORT
-                    )
-                )
-
-                inputStream = DataInputStream(tcpSocket.getInputStream())
-                outputStream = DataOutputStream(tcpSocket.getOutputStream())
-
-                while(true){
-                    // Wait for the STUN response
-                    val response = ByteArray(512)
-                    val byteRead = inputStream.read(response)
-
-                    Log.d("size",byteRead.toString())
-
-                    if(byteRead < response.size){
-
-                        data.append(String(response, 0, byteRead))
-
-                        mainActivityViewModel.chatData.add(
-                            ChatModel(
-                                1,
-                                data.toString(),
-                                System.currentTimeMillis()
-                            )
+                try {
+                    tcpSocket.connect(
+                        InetSocketAddress(
+                            mainActivityViewModel.receiverIP,
+                            mainActivityViewModel.receiverPORT
                         )
-                        mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+                    )
 
-                        data.clear()
-                    }else{
-                        data.append(String(response, 0, byteRead))
+                    mainActivityViewModel.isConnectionEstablished.postValue(true)
+
+                    val data = java.lang.StringBuilder()
+
+                    inputStream = DataInputStream(tcpSocket.getInputStream())
+                    outputStream = DataOutputStream(tcpSocket.getOutputStream())
+
+                    while(true){
+                        // Wait for the STUN response
+                        val response = ByteArray(512)
+                        val byteRead = inputStream.read(response)
+
+                        Log.d("size",byteRead.toString())
+
+                        Log.d("data",String(response, 0, byteRead))
+
+                        if(byteRead < response.size){
+
+                            data.append(String(response, 0, byteRead))
+
+                            mainActivityViewModel.chatData.add(
+                                ChatModel(
+                                    1,
+                                    data.toString(),
+                                    System.currentTimeMillis()
+                                )
+                            )
+                            mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+
+                            data.clear()
+                        }else{
+                            data.append(String(response, 0, byteRead))
+                        }
                     }
+                }catch (e : Exception){
+                    displayProgressIndicator(false)
+                    createToast(e.message.toString())
+                    Log.d("TCP connect failed",e.message.toString())
                 }
             }
         }
@@ -218,6 +265,20 @@ class MainActivity : AppCompatActivity() {
                     outputStream.flush()
                 }
             }
+        }
+    }
+
+    private fun displayProgressIndicator(display : Boolean){
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            binding.mainActivityLinesrProgressIndicator.isVisible = display
+        }
+    }
+
+    private fun createToast(msg : String){
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            val snackBar = Snackbar.make(binding.root,msg,Snackbar.LENGTH_SHORT)
+            snackBar.setTextMaxLines(5)
+            snackBar.show()
         }
     }
 
@@ -299,36 +360,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendData() {
+        displayProgressIndicator(true)
+
         val udpReceiverData = java.lang.StringBuilder()
 
         binding.mainActivityUDPClientButton.setOnClickListener {
 
-            val port = mainActivityViewModel.receiverPORT
-            val ip = mainActivityViewModel.receiverIP
-
             val text = binding.mainActivityUDPClientEditText.text.toString().trim()
 
-            mainActivityViewModel.chatData.add(ChatModel(0, text, System.currentTimeMillis()))
-            mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+            if(text.isNotBlank()){
+                val port = mainActivityViewModel.receiverPORT
+                val ip = mainActivityViewModel.receiverIP
 
-            binding.mainActivityUDPClientEditText.setText("")
+                mainActivityViewModel.chatData.add(ChatModel(0, text, System.currentTimeMillis()))
+                mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
 
-            val chunks = text.chunked(512)
+                binding.mainActivityUDPClientEditText.setText("")
 
-            for(chunk in chunks){
-                CoroutineScope(Dispatchers.IO).launch {
-                    val p = DatagramPacket(
-                        chunk.toByteArray(), chunk.toByteArray().size,
+                val chunks = text.chunked(512)
+
+                for(chunk in chunks){
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val p = DatagramPacket(
+                            chunk.toByteArray(), chunk.toByteArray().size,
+                            withContext(Dispatchers.IO) {
+                                InetAddress.getByName(ip)
+                            }, port
+                        )
                         withContext(Dispatchers.IO) {
-                            InetAddress.getByName(ip)
-                        }, port
-                    )
-                    withContext(Dispatchers.IO) {
-                        socket.send(p)
+                            socket.send(p)
+                        }
                     }
-                }
 
-                Log.d("chunk size",chunk.toByteArray().size.toString())
+                    Log.d("chunk size",chunk.toByteArray().size.toString())
+                }
             }
         }
 
@@ -341,13 +406,13 @@ class MainActivity : AppCompatActivity() {
 
                 val receivedData = String(rp.data,0,rp.data.indexOf(0))
 
+                Log.d("data",receivedData)
+
                 if(receivedData.toByteArray().size < 512){
 
                     if (receivedData != CONNECTION_ESTABLISH_STRING) {
 
                         udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
-
-                        mainActivityViewModel.timer.cancel()
 
                         mainActivityViewModel.chatData.add(
                             ChatModel(
@@ -359,6 +424,11 @@ class MainActivity : AppCompatActivity() {
                         mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
 
                         udpReceiverData.clear()
+                    }else{
+                        mainActivityViewModel.isConnectionEstablished.postValue(true)
+                        CoroutineScope(Dispatchers.Main.immediate).launch {
+                            mainActivityViewModel.isConnectionEstablished.removeObservers(this@MainActivity)
+                        }
                     }
                 }else{
                     udpReceiverData.append(String(rp.data,0,rp.data.indexOf(0)))
@@ -442,7 +512,9 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                mainActivityViewModel.timer()
+                binding.mainActivityConfigureButton.isVisible = false
+
+                mainActivityViewModel.timer(60000)
                 sendData()
             }
         }
@@ -452,6 +524,8 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
+
+                binding.mainActivityConfigureButton.isEnabled = false
 
                 CoroutineScope(Dispatchers.IO).launch {
                     sendTcpData()

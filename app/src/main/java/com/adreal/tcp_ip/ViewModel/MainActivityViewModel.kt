@@ -16,8 +16,8 @@ class MainActivityViewModel : ViewModel() {
     val chatList = MutableLiveData<ArrayList<ChatModel>>()
     var mode : Int = 1
 
-    fun timer() {
-        timer = object : CountDownTimer(30000, 1000) {
+    fun timer(time : Long) {
+        timer = object : CountDownTimer(time, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 tick.postValue(millisUntilFinished)
             }
