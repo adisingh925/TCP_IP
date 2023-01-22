@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val PORT = 60001
-        const val TCP_PORT = 50002
+        const val TCP_PORT = 50001
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -377,7 +377,7 @@ class MainActivity : AppCompatActivity() {
 
                 binding.mainActivityUDPClientEditText.setText("")
 
-                val chunks = text.chunked(512)
+                val chunks = text.chunked(256)
 
                 for(chunk in chunks){
                     CoroutineScope(Dispatchers.IO).launch {
