@@ -127,8 +127,8 @@ class MainActivity : AppCompatActivity() {
 
         mainActivityViewModel.isConnectionEstablished.observe(this@MainActivity){
             if(it){
-                mainActivityViewModel.timer.cancel()
-                mainActivityViewModel.timer(5000)
+//                mainActivityViewModel.timer.cancel()
+//                mainActivityViewModel.timer(5000)
                 Toast.makeText(this,"Connection Established",Toast.LENGTH_SHORT).show()
                 binding.mainActivityLinesrProgressIndicator.isVisible = false
                 binding.mainActivityUDPClientEditText.isEnabled = true
@@ -174,15 +174,15 @@ class MainActivity : AppCompatActivity() {
             createToast(e.message.toString())
         }
 
-        val tcpServerSocket = ServerSocket()
+        val tcpServerSocket = ServerSocket(TCP_PORT)
         tcpServerSocket.reuseAddress = true
 
-        try {
-            tcpServerSocket.bind(InetSocketAddress(TCP_PORT))
-        }catch (e : Exception){
-            Log.d("server socket bind failed",e.message.toString())
-            createToast(e.message.toString())
-        }
+//        try {
+//            tcpServerSocket.bind(InetSocketAddress(TCP_PORT))
+//        }catch (e : Exception){
+//            Log.d("server socket bind failed",e.message.toString())
+//            createToast(e.message.toString())
+//        }
 
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.IO) {
