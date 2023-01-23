@@ -88,8 +88,8 @@ class MainActivity : AppCompatActivity() {
             if (mainActivityViewModel.isObserverNeeded) {
                 if (it) {
                     Log.d("connection", "established")
-                    mainActivityViewModel.timer.cancel()
-                    mainActivityViewModel.timer(5000)
+//                    mainActivityViewModel.timer.cancel()
+//                    mainActivityViewModel.timer(5000)
                     Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
                     mainActivityViewModel.isProgressBarVisible = false
@@ -310,11 +310,10 @@ class MainActivity : AppCompatActivity() {
         bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT =
-                    bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                mainActivityViewModel.timer(60000)
+                mainActivityViewModel.timer(3600000)
                 displayProgressIndicator()
                 mainActivityViewModel.receiverData()
                 mainActivityViewModel.isObserverNeeded = true
