@@ -197,7 +197,7 @@ class MainActivityViewModel : ViewModel() {
 
                 Log.d("data", receivedData)
 
-                if (receivedData.toByteArray().size < 512) {
+                if (receivedData.toByteArray().size < 256) {
 
                     if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING) {
 

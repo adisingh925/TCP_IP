@@ -313,7 +313,7 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                mainActivityViewModel.timer(3600000)
+                mainActivityViewModel.timer(86400000)
                 displayProgressIndicator()
                 mainActivityViewModel.receiverData()
                 mainActivityViewModel.isObserverNeeded = true
