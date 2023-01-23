@@ -164,87 +164,88 @@ class MainActivity : AppCompatActivity() {
     private fun sendTcpData() {
         displayProgressIndicator(true)
 
+        val data = java.lang.StringBuilder()
+
         val tcpSocket = Socket()
         tcpSocket.reuseAddress = true
 
         try {
             tcpSocket.bind(InetSocketAddress(TCP_PORT))
-        }catch(e : Exception){
-            Log.d("client socket bind failed",e.message.toString())
+        }catch (e : Exception){
             createToast(e.message.toString())
+            Log.d("tcp client bind failed",e.message.toString())
         }
 
-        val tcpServerSocket = ServerSocket(TCP_PORT)
+        val tcpServerSocket = ServerSocket()
         tcpServerSocket.reuseAddress = true
 
-//        try {
-//            tcpServerSocket.bind(InetSocketAddress(TCP_PORT))
-//        }catch (e : Exception){
-//            Log.d("server socket bind failed",e.message.toString())
-//            createToast(e.message.toString())
-//        }
+        try {
+            tcpServerSocket.bind(InetSocketAddress(TCP_PORT))
+        }catch (e : Exception){
+            createToast(e.message.toString())
+            Log.d("tcp server bind failed",e.message.toString())
+        }
 
         CoroutineScope(Dispatchers.IO).launch {
             withContext(Dispatchers.IO) {
                 try {
                     tcpServerSocket.accept()
                 }catch (e : Exception){
-                    displayProgressIndicator(false)
                     createToast(e.message.toString())
-                    Log.d("TCP accept failed",e.message.toString())
+                    Log.d("tcp server accept failed",e.message.toString())
                 }
+
             }
         }
 
         CoroutineScope(Dispatchers.IO).launch {
-            withContext(Dispatchers.IO) {
-                try {
+            try {
+                withContext(Dispatchers.IO) {
                     tcpSocket.connect(
                         InetSocketAddress(
                             mainActivityViewModel.receiverIP,
                             mainActivityViewModel.receiverPORT
                         )
                     )
-
-                    mainActivityViewModel.isConnectionEstablished.postValue(true)
-
-                    val data = java.lang.StringBuilder()
-
-                    inputStream = DataInputStream(tcpSocket.getInputStream())
-                    outputStream = DataOutputStream(tcpSocket.getOutputStream())
-
-                    while(true){
-                        // Wait for the STUN response
-                        val response = ByteArray(512)
-                        val byteRead = inputStream.read(response)
-
-                        Log.d("size",byteRead.toString())
-
-                        Log.d("data",String(response, 0, byteRead))
-
-                        if(byteRead < response.size){
-
-                            data.append(String(response, 0, byteRead))
-
-                            mainActivityViewModel.chatData.add(
-                                ChatModel(
-                                    1,
-                                    data.toString(),
-                                    System.currentTimeMillis()
-                                )
-                            )
-                            mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
-
-                            data.clear()
-                        }else{
-                            data.append(String(response, 0, byteRead))
-                        }
-                    }
-                }catch (e : Exception){
-                    displayProgressIndicator(false)
-                    createToast(e.message.toString())
-                    Log.d("TCP connect failed",e.message.toString())
                 }
+
+                mainActivityViewModel.isConnectionEstablished.postValue(true)
+
+                inputStream = DataInputStream(withContext(Dispatchers.IO) {
+                    tcpSocket.getInputStream()
+                })
+                outputStream = DataOutputStream(withContext(Dispatchers.IO) {
+                    tcpSocket.getOutputStream()
+                })
+
+                while(true){
+                    // Wait for the STUN response
+                    val response = ByteArray(512)
+                    val byteRead = withContext(Dispatchers.IO) {
+                            inputStream.read(response)
+                        }
+
+                    if(byteRead < response.size){
+
+                        data.append(String(response, 0, byteRead))
+
+                        mainActivityViewModel.chatData.add(
+                            ChatModel(
+                                1,
+                                data.toString(),
+                                System.currentTimeMillis()
+                            )
+                        )
+                        mainActivityViewModel.chatList.postValue(mainActivityViewModel.chatData)
+
+                        data.clear()
+                    }else{
+                        data.append(String(response, 0, byteRead))
+                    }
+                }
+            }catch (e : Exception){
+                createToast(e.message.toString())
+                Log.d("tcp server connect failed",e.message.toString())
             }
         }
 
@@ -525,7 +526,7 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                binding.mainActivityConfigureButton.isEnabled = false
+                binding.mainActivityConfigureButton.isVisible = false
 
                 CoroutineScope(Dispatchers.IO).launch {
                     sendTcpData()
