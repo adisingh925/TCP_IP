@@ -222,8 +222,8 @@ class MainActivity : AppCompatActivity() {
                     // Wait for the STUN response
                     val response = ByteArray(512)
                     val byteRead = withContext(Dispatchers.IO) {
-                            inputStream.read(response)
-                        }
+                        inputStream.read(response)
+                    }
 
                     if(byteRead < response.size){
 
