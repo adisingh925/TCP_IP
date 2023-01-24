@@ -56,8 +56,8 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView
     }
 
-    lateinit var inputStream: DataInputStream
-    lateinit var outputStream: DataOutputStream
+    private lateinit var inputStream: DataInputStream
+    private lateinit var outputStream: DataOutputStream
 
     companion object {
         const val PORT = 60001
@@ -87,8 +87,6 @@ class MainActivity : AppCompatActivity() {
             Log.d("reinitializing timer","reinitialized")
             mainActivityViewModel.timer(TIMER_TIME)
         }
-
-//        mainActivityViewModel.transmitTableUpdate("1","23","232")
 
         binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
         binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
@@ -332,7 +330,11 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                mainActivityViewModel.timer(TIMER_TIME)
+                if(mainActivityViewModel.isTimerRunning.value == false){
+                    mainActivityViewModel.timer(TIMER_TIME)
+                    mainActivityViewModel.isTimerRunning.postValue(true)
+                }
+
                 displayProgressIndicator()
                 mainActivityViewModel.receiverData()
                 mainActivityViewModel.isObserverNeeded = true

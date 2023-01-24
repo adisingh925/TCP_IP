@@ -51,6 +51,7 @@ class MainActivityViewModel : ViewModel() {
     var isObserverNeeded = false
 
     val isTimerFinished = MutableLiveData<Boolean>()
+    val isTimerRunning = MutableLiveData(false)
 
     private val socket by lazy {
         DatagramSocket(MainActivity.PORT)
