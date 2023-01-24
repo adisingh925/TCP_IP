@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.provider.Contacts.People
+import android.provider.Settings
+import android.provider.Settings.*
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -35,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.lang.System
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -99,20 +102,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             Log.d("people data activity",it.toString())
             for(i in it){
                 if(i.status == "2"){
-                    mainActivityViewModel.receiverIP = i.ip
-                    mainActivityViewModel.receiverPORT = i.port.toInt()
-
-                    if (mainActivityViewModel.isTimerRunning.value == false) {
-                        mainActivityViewModel.timer(TIMER_TIME)
-                        mainActivityViewModel.isTimerRunning.postValue(true)
-                    }
-
-                    displayProgressIndicator()
-                    mainActivityViewModel.receiverData()
-                    mainActivityViewModel.isObserverNeeded = true
-
+                    initiateConnection(i.ip,i.port)
                     i.status = "1"
-
                     databaseViewModel.addData(i)
                 }
             }
@@ -123,9 +114,9 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         }
 
         if (SharedPreferences.read("UserId", "null") == "null") {
-            val uuid = UUID.randomUUID().toString()
+            val uuid = Secure.getString(contentResolver, Secure.ANDROID_ID)
             SharedPreferences.write("UserId", uuid)
-            Log.d("random UUID generated", uuid)
+            Log.d("Device Id", uuid)
         }
 
         mainActivityViewModel.isTimerFinished.observe(this) {
@@ -135,8 +126,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
         binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
-        binding.mainActivityLinesrProgressIndicator.isVisible =
-            mainActivityViewModel.isProgressBarVisible
+        binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
 
         initDialog()
         initUserDialog()
@@ -152,8 +142,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             if (mainActivityViewModel.isObserverNeeded) {
                 if (it) {
                     Log.d("connection", "established")
-//                    mainActivityViewModel.timer.cancel()
-//                    mainActivityViewModel.timer(5000)
                     Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
                     mainActivityViewModel.isProgressBarVisible = false
@@ -201,62 +189,50 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                             SharedPreferences.write("isSubscribed", "y")
                             Log.d("Fcm subscribe", "success")
                             if (SharedPreferences.read("myIp", "null") == "null") {
-                                flag = 1
                                 SharedPreferences.write("myIp", data[0])
                             } else if (SharedPreferences.read("myIp", "null") != data[0]) {
-                                flag = 1
                                 SharedPreferences.write("myIp", data[0])
                             }
 
                             if (SharedPreferences.read("myPort", "null") == "null") {
-                                flag = 1
                                 SharedPreferences.write("myPort", data[1])
                             } else if (SharedPreferences.read("myPort", "null") != data[1]) {
-                                flag = 1
                                 SharedPreferences.write("myPort", data[1])
                             }
 
-                            if (flag == 1) {
-                                mainActivityViewModel.transmitTableUpdate(
-                                    SharedPreferences.read("UserId", "null").toString(),
-                                    data[0],
-                                    data[1],
-                                    SharedPreferences.read("FcmToken", "null").toString(),
-                                    TOPIC_DESTINATION,
-                                    "1"
-                                )
-                            }
+                            mainActivityViewModel.transmitTableUpdate(
+                                SharedPreferences.read("UserId", "null").toString(),
+                                data[0],
+                                data[1],
+                                SharedPreferences.read("FcmToken", "null").toString(),
+                                TOPIC_DESTINATION,
+                                "1"
+                            )
                         } else {
                             Log.d("Fcm subscribe", "failed")
                         }
                     }
             } else {
                 if (SharedPreferences.read("myIp", "null") == "null") {
-                    flag = 1
                     SharedPreferences.write("myIp", data[0])
                 } else if (SharedPreferences.read("myIp", "null") != data[0]) {
-                    flag = 1
                     SharedPreferences.write("myIp", data[0])
                 }
 
                 if (SharedPreferences.read("myPort", "null") == "null") {
-                    flag = 1
                     SharedPreferences.write("myPort", data[1])
                 } else if (SharedPreferences.read("myPort", "null") != data[1]) {
-                    flag = 1
                     SharedPreferences.write("myPort", data[1])
                 }
 
-                if (flag == 1) {
-                    mainActivityViewModel.transmitTableUpdate(
-                        SharedPreferences.read("UserId", "null").toString(),
-                        data[0],
-                        data[1],
-                        SharedPreferences.read("FcmToken", "null").toString(),
-                        TOPIC_DESTINATION
+                mainActivityViewModel.transmitTableUpdate(
+                    SharedPreferences.read("UserId", "null").toString(),
+                    data[0],
+                    data[1],
+                    SharedPreferences.read("FcmToken", "null").toString(),
+                    TOPIC_DESTINATION
                     ,"1"
-                    )
-                }
+                )
             }
         }
 
@@ -464,26 +440,15 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
-                mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                initiateConnection(bind.configureDialogReceiverIP.text.toString(),bind.configureDialogReceiverPORT.text.toString())
                 dialog.dismiss()
-
-                if (mainActivityViewModel.isTimerRunning.value == false) {
-                    mainActivityViewModel.timer(TIMER_TIME)
-                    mainActivityViewModel.isTimerRunning.postValue(true)
-                }
-
-                displayProgressIndicator()
-                mainActivityViewModel.receiverData()
-                mainActivityViewModel.isObserverNeeded = true
             }
         }
 
         bind.configureTcpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT =
-                    bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 binding.mainActivityConfigureButton.isVisible = false
@@ -502,17 +467,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     override fun onItemClick(data: ConnectionData) {
         Log.d("people Item","clicked")
 
-        mainActivityViewModel.receiverIP = data.ip
-        mainActivityViewModel.receiverPORT = data.port.toInt()
-
-        if (mainActivityViewModel.isTimerRunning.value == false) {
-            mainActivityViewModel.timer(TIMER_TIME)
-            mainActivityViewModel.isTimerRunning.postValue(true)
-        }
-
-        displayProgressIndicator()
-        mainActivityViewModel.receiverData()
-        mainActivityViewModel.isObserverNeeded = true
+        initiateConnection(data.ip,data.port)
 
         mainActivityViewModel.transmitTableUpdate(
             SharedPreferences.read("UserId", "null").toString(),
@@ -524,5 +479,19 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         )
 
         userDialog.dismiss()
+    }
+
+    private fun initiateConnection(ip : String, port : String){
+        mainActivityViewModel.receiverIP = ip
+        mainActivityViewModel.receiverPORT = port.toInt()
+
+        if (mainActivityViewModel.isTimerRunning.value == false) {
+            mainActivityViewModel.timer(TIMER_TIME)
+            mainActivityViewModel.isTimerRunning.postValue(true)
+        }
+
+        displayProgressIndicator()
+        mainActivityViewModel.receiverData()
+        mainActivityViewModel.isObserverNeeded = true
     }
 }
