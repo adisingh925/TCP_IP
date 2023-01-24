@@ -18,6 +18,17 @@
         android:indeterminate="true" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:layout_width="wrap_content"
+        android:id="@+id/mainActivityPeopleButton"
+        app:layout_constraintBottom_toTopOf="@id/mainActivityConfigureButton"
+        app:layout_constraintRight_toRightOf="@id/mainActivityConfigureButton"
+        app:layout_constraintLeft_toLeftOf="@id/mainActivityConfigureButton"
+        app:fabSize="mini"
+        android:src="@drawable/people"
+        android:layout_marginBottom="16dp"
+        android:layout_height="wrap_content"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/mainActivityConfigureButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

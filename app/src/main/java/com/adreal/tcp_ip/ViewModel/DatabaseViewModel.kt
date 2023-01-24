@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class DatabaseViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val readAllData : LiveData<List<ConnectionData>>
+    val readAllData : LiveData<List<ConnectionData>>
 
     private val repository: Repository
 

@@ -57,16 +57,18 @@ class MainActivityViewModel : ViewModel() {
         DatagramSocket(MainActivity.PORT)
     }
 
-    fun transmitTableUpdate(userId : String, publicIp : String, publicPort : String){
+    fun transmitTableUpdate(userId : String, publicIp : String, publicPort : String, token : String, destination : String,status : String){
         val jsonObject = JSONObject()
         val jsonObject1 = JSONObject()
 
-        jsonObject.put("to", "/topics/${Constants.FCM_TOPIC}")
+        jsonObject.put("to", destination)
         jsonObject.put("data", jsonObject1)
 
         jsonObject1.put("userId", userId)
         jsonObject1.put("publicIp", publicIp)
         jsonObject1.put("publicPort", publicPort)
+        jsonObject1.put("token", token)
+        jsonObject1.put("status",status)
 
         val json = "application/json; charset=utf-8".toMediaTypeOrNull()
         val body = jsonObject.toString().toRequestBody(json)

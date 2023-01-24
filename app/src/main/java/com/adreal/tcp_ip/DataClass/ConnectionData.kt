@@ -8,5 +8,7 @@ import androidx.room.PrimaryKey
 data class ConnectionData(
     @PrimaryKey val userId : String,
     val ip : String,
-    val port : String
+    val port : String,
+    val token : String,
+    val status : String
 )

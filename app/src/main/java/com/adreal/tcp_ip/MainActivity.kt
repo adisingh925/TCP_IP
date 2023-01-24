@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.provider.Contacts.People
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -16,6 +17,8 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.adreal.tcp_ip.Adapter.ChatAdapter
+import com.adreal.tcp_ip.Adapter.PeopleAdapter
+import com.adreal.tcp_ip.Constants.Constants
 import com.adreal.tcp_ip.DataClass.ChatModel
 import com.adreal.tcp_ip.DataClass.ConnectionData
 import com.adreal.tcp_ip.SharedPreferences.SharedPreferences
@@ -23,7 +26,9 @@ import com.adreal.tcp_ip.ViewModel.DatabaseViewModel
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
 import com.adreal.tcp_ip.databinding.ConfigureBinding
+import com.adreal.tcp_ip.databinding.PeopleLayoutBinding
 import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,7 +41,7 @@ import java.net.Socket
 import java.util.*
 
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
     private val binding by lazy {
         ActivityMainBinding.inflate(layoutInflater)
@@ -62,6 +67,10 @@ class MainActivity : AppCompatActivity() {
         ViewModelProvider(this)[DatabaseViewModel::class.java]
     }
 
+    private val userDialog by lazy {
+        Dialog(this)
+    }
+
     private lateinit var inputStream: DataInputStream
     private lateinit var outputStream: DataOutputStream
 
@@ -73,7 +82,8 @@ class MainActivity : AppCompatActivity() {
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
         const val STUNTMAN_STUN_SERVER_IP = "18.191.223.12"
         const val STUNTMAN_STUN_SERVER_PORT_TCP = 3478
-        const val TIMER_TIME : Long = 3600000
+        const val TIMER_TIME: Long = 3600000
+        const val TOPIC_DESTINATION = "/topics/${Constants.FCM_TOPIC}"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,24 +93,49 @@ class MainActivity : AppCompatActivity() {
 
         SharedPreferences.init(this)
 
-        databaseViewModel.addData(ConnectionData("12","323","3434"))
+        binding.mainActivityPeopleButton.isEnabled = false
 
-        if(SharedPreferences.read("UserId","null") == "null"){
-            val uuid = UUID.randomUUID().toString()
-            SharedPreferences.write("UserId",uuid)
-            Log.d("random UUID generated",uuid)
+        databaseViewModel.readAllData.observe(this){
+            Log.d("people data activity",it.toString())
+            for(i in it){
+                if(i.status == "2"){
+                    mainActivityViewModel.receiverIP = i.ip
+                    mainActivityViewModel.receiverPORT = i.port.toInt()
+
+                    if (mainActivityViewModel.isTimerRunning.value == false) {
+                        mainActivityViewModel.timer(TIMER_TIME)
+                        mainActivityViewModel.isTimerRunning.postValue(true)
+                    }
+
+                    displayProgressIndicator()
+                    mainActivityViewModel.receiverData()
+                    mainActivityViewModel.isObserverNeeded = true
+                }
+            }
         }
 
-        mainActivityViewModel.isTimerFinished.observe(this){
-            Log.d("reinitializing timer","reinitialized")
+        binding.mainActivityPeopleButton.setOnClickListener {
+            showUserDialog()
+        }
+
+        if (SharedPreferences.read("UserId", "null") == "null") {
+            val uuid = UUID.randomUUID().toString()
+            SharedPreferences.write("UserId", uuid)
+            Log.d("random UUID generated", uuid)
+        }
+
+        mainActivityViewModel.isTimerFinished.observe(this) {
+            Log.d("reinitializing timer", "reinitialized")
             mainActivityViewModel.timer(TIMER_TIME)
         }
 
         binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
         binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
-        binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+        binding.mainActivityLinesrProgressIndicator.isVisible =
+            mainActivityViewModel.isProgressBarVisible
 
         initDialog()
+        initUserDialog()
         initRecycler()
 
         if (mainActivityViewModel.isDataInitialized == 0) {
@@ -149,29 +184,75 @@ class MainActivity : AppCompatActivity() {
             binding.mainActivityTCPPublicCredentials.text = it
         }
 
-        mainActivityViewModel.stunDataReceived.observe(this) {
+        mainActivityViewModel.stunDataReceived.observe(this) { data ->
+            binding.mainActivityPeopleButton.isEnabled = true
             var flag = 0
 
-            binding.mainActivityPublicCredentials.text = "${it[0]} : ${it[1]}"
+            binding.mainActivityPublicCredentials.text = "${data[0]} : ${data[1]}"
 
-            if(SharedPreferences.read("myIp","null") == "null"){
-                flag = 1
-                SharedPreferences.write("myIp",it[0])
-            }else if(SharedPreferences.read("myIp","null") != it[0]){
-                flag = 1
-                SharedPreferences.write("myIp",it[0])
-            }
+            if (SharedPreferences.read("isSubscribed", "null") == "null") {
+                FirebaseMessaging.getInstance().subscribeToTopic(Constants.FCM_TOPIC)
+                    .addOnCompleteListener {
+                        if (it.isSuccessful) {
+                            SharedPreferences.write("isSubscribed", "y")
+                            Log.d("Fcm subscribe", "success")
+                            if (SharedPreferences.read("myIp", "null") == "null") {
+                                flag = 1
+                                SharedPreferences.write("myIp", data[0])
+                            } else if (SharedPreferences.read("myIp", "null") != data[0]) {
+                                flag = 1
+                                SharedPreferences.write("myIp", data[0])
+                            }
 
-            if(SharedPreferences.read("myPort","null") == "null"){
-                flag = 1
-                SharedPreferences.write("myPort",it[1])
-            }else if(SharedPreferences.read("myPort","null") != it[1]){
-                flag = 1
-                SharedPreferences.write("myPort",it[1])
-            }
+                            if (SharedPreferences.read("myPort", "null") == "null") {
+                                flag = 1
+                                SharedPreferences.write("myPort", data[1])
+                            } else if (SharedPreferences.read("myPort", "null") != data[1]) {
+                                flag = 1
+                                SharedPreferences.write("myPort", data[1])
+                            }
 
-            if(flag == 1){
-                mainActivityViewModel.transmitTableUpdate(SharedPreferences.read("userId","null").toString(),it[0],it[1])
+                            if (flag == 1) {
+                                mainActivityViewModel.transmitTableUpdate(
+                                    SharedPreferences.read("UserId", "null").toString(),
+                                    data[0],
+                                    data[1],
+                                    SharedPreferences.read("FcmToken", "null").toString(),
+                                    TOPIC_DESTINATION,
+                                    "1"
+                                )
+                            }
+                        } else {
+                            Log.d("Fcm subscribe", "failed")
+                        }
+                    }
+            } else {
+                if (SharedPreferences.read("myIp", "null") == "null") {
+                    flag = 1
+                    SharedPreferences.write("myIp", data[0])
+                } else if (SharedPreferences.read("myIp", "null") != data[0]) {
+                    flag = 1
+                    SharedPreferences.write("myIp", data[0])
+                }
+
+                if (SharedPreferences.read("myPort", "null") == "null") {
+                    flag = 1
+                    SharedPreferences.write("myPort", data[1])
+                } else if (SharedPreferences.read("myPort", "null") != data[1]) {
+                    flag = 1
+                    SharedPreferences.write("myPort", data[1])
+                }
+
+                if (flag == 1) {
+                    mainActivityViewModel.transmitTableUpdate(
+                        SharedPreferences.read("UserId", "null").toString(),
+                        data[0],
+                        data[1],
+                        SharedPreferences.read("FcmToken", "null").toString(),
+                        TOPIC_DESTINATION
+                    ,"1"
+                    )
+                }
             }
         }
 
@@ -186,6 +267,29 @@ class MainActivity : AppCompatActivity() {
 
             }
         }
+    }
+
+    private fun showUserDialog() {
+        userDialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        val bind = PeopleLayoutBinding.inflate(layoutInflater)
+
+        val peopleAdapter = PeopleAdapter(this,this)
+        val recyclerView = bind.peopleLayoutRecyclerView
+        recyclerView.adapter = peopleAdapter
+        recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+
+        databaseViewModel.readAllData.observe(this){
+            Log.d("people data",it.toString())
+            peopleAdapter.setData(it)
+        }
+
+        userDialog.setCancelable(true)
+        userDialog.setContentView(bind.root)
+        userDialog.show()
+    }
+
+    private fun initUserDialog() {
+        userDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
     }
 
     private fun sendTcpData() {
@@ -357,10 +461,11 @@ class MainActivity : AppCompatActivity() {
         bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT =
+                    bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                if(mainActivityViewModel.isTimerRunning.value == false){
+                if (mainActivityViewModel.isTimerRunning.value == false) {
                     mainActivityViewModel.timer(TIMER_TIME)
                     mainActivityViewModel.isTimerRunning.postValue(true)
                 }
@@ -389,5 +494,32 @@ class MainActivity : AppCompatActivity() {
         dialog.setCancelable(true)
         dialog.setContentView(bind.root)
         dialog.show()
+    }
+
+    override fun onItemClick(data: ConnectionData) {
+        Log.d("people Item","clicked")
+
+        mainActivityViewModel.receiverIP = data.ip
+        mainActivityViewModel.receiverPORT = data.port.toInt()
+
+        if (mainActivityViewModel.isTimerRunning.value == false) {
+            mainActivityViewModel.timer(TIMER_TIME)
+            mainActivityViewModel.isTimerRunning.postValue(true)
+        }
+
+        displayProgressIndicator()
+        mainActivityViewModel.receiverData()
+        mainActivityViewModel.isObserverNeeded = true
+
+        mainActivityViewModel.transmitTableUpdate(
+            SharedPreferences.read("UserId", "null").toString(),
+            mainActivityViewModel.stunDataReceived.value?.get(0).toString(),
+            mainActivityViewModel.stunDataReceived.value?.get(1).toString(),
+            SharedPreferences.read("FcmToken", "null").toString(),
+            "/to/${data.token}"
+            ,"2"
+        )
+
+        userDialog.dismiss()
     }
 }
