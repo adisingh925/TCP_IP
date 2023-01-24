@@ -10,5 +10,5 @@ data class ConnectionData(
     val ip : String,
     val port : String,
     val token : String,
-    val status : String
+    var status : String
 )

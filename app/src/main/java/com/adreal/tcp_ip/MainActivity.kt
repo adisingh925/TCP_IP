@@ -110,6 +110,10 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                     displayProgressIndicator()
                     mainActivityViewModel.receiverData()
                     mainActivityViewModel.isObserverNeeded = true
+
+                    i.status = "1"
+
+                    databaseViewModel.addData(i)
                 }
             }
         }
@@ -461,8 +465,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT =
-                    bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 if (mainActivityViewModel.isTimerRunning.value == false) {
