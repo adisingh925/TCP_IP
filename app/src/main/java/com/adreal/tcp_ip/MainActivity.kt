@@ -17,7 +17,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.adreal.tcp_ip.Adapter.ChatAdapter
 import com.adreal.tcp_ip.DataClass.ChatModel
+import com.adreal.tcp_ip.DataClass.ConnectionData
 import com.adreal.tcp_ip.SharedPreferences.SharedPreferences
+import com.adreal.tcp_ip.ViewModel.DatabaseViewModel
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
 import com.adreal.tcp_ip.databinding.ConfigureBinding
@@ -56,6 +58,10 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerView
     }
 
+    private val databaseViewModel by lazy {
+        ViewModelProvider(this)[DatabaseViewModel::class.java]
+    }
+
     private lateinit var inputStream: DataInputStream
     private lateinit var outputStream: DataOutputStream
 
@@ -76,6 +82,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         SharedPreferences.init(this)
+
+        databaseViewModel.addData(ConnectionData("12","323","3434"))
 
         if(SharedPreferences.read("UserId","null") == "null"){
             val uuid = UUID.randomUUID().toString()
@@ -142,7 +150,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         mainActivityViewModel.stunDataReceived.observe(this) {
-            binding.mainActivityPublicCredentials.text = it
+            var flag = 0
+
+            binding.mainActivityPublicCredentials.text = "${it[0]} : ${it[1]}"
+
+            if(SharedPreferences.read("myIp","null") == "null"){
+                flag = 1
+                SharedPreferences.write("myIp",it[0])
+            }else if(SharedPreferences.read("myIp","null") != it[0]){
+                flag = 1
+                SharedPreferences.write("myIp",it[0])
+            }
+
+            if(SharedPreferences.read("myPort","null") == "null"){
+                flag = 1
+                SharedPreferences.write("myPort",it[1])
+            }else if(SharedPreferences.read("myPort","null") != it[1]){
+                flag = 1
+                SharedPreferences.write("myPort",it[1])
+            }
+
+            if(flag == 1){
+                mainActivityViewModel.transmitTableUpdate(SharedPreferences.read("userId","null").toString(),it[0],it[1])
+            }
         }
 
         binding.mainActivityUDPClientButton.setOnClickListener {

@@ -42,7 +42,7 @@ class MainActivityViewModel : ViewModel() {
     val chatList = MutableLiveData<ArrayList<ChatModel>>()
     var mode: Int = 1
     val tcpStunDataReceived = MutableLiveData<String>()
-    val stunDataReceived = MutableLiveData<String>()
+    val stunDataReceived = MutableLiveData<List<String>>()
     var isDataInitialized = 0
 
     var isEditTextEnabled : Boolean = false
@@ -218,7 +218,11 @@ class MainActivityViewModel : ViewModel() {
                 receiveMH.parseAttributes(rp.data)
                 val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
-                stunDataReceived.postValue("${ma.address} : ${ma.port}")
+                val list = kotlin.collections.ArrayList<String>()
+                list.add(ma.address.toString())
+                list.add(ma.port.toString())
+
+                stunDataReceived.postValue(list)
             }
         }
     }
