@@ -4,8 +4,11 @@ import android.os.CountDownTimer
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.adreal.tcp_ip.Constants.Constants
 import com.adreal.tcp_ip.DataClass.ChatModel
+import com.adreal.tcp_ip.DataClass.FcmResponse
 import com.adreal.tcp_ip.MainActivity
+import com.adreal.tcp_ip.Retrofit.SendFcmSignalObject
 import de.javawi.jstun.attribute.ChangeRequest
 import de.javawi.jstun.attribute.MappedAddress
 import de.javawi.jstun.attribute.MessageAttributeInterface
@@ -16,6 +19,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.*
@@ -41,8 +50,38 @@ class MainActivityViewModel : ViewModel() {
     var isProgressBarVisible = false
     var isObserverNeeded = false
 
+    val isTimerFinished = MutableLiveData<Boolean>()
+
     private val socket by lazy {
         DatagramSocket(MainActivity.PORT)
+    }
+
+    fun transmitTableUpdate(userId : String, publicIp : String, publicPort : String){
+        val jsonObject = JSONObject()
+        val jsonObject1 = JSONObject()
+
+        jsonObject.put("to", "/topics/${Constants.FCM_TOPIC}")
+        jsonObject.put("data", jsonObject1)
+
+        jsonObject1.put("userId", userId)
+        jsonObject1.put("publicIp", publicIp)
+        jsonObject1.put("publicPort", publicPort)
+
+        val json = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val body = jsonObject.toString().toRequestBody(json)
+
+        SendFcmSignalObject.sendFcmSignal.sendSignal(
+            "key=${Constants.FCM_API_KEY}",
+            body
+        ).enqueue(object : Callback<FcmResponse>{
+            override fun onResponse(call: Call<FcmResponse>, response: Response<FcmResponse>) {
+                Log.d("Fcm Message","send")
+            }
+
+            override fun onFailure(call: Call<FcmResponse>, t: Throwable) {
+                Log.d("Fcm Message","failed")
+            }
+        })
     }
 
     fun timer(time: Long) {
@@ -68,6 +107,7 @@ class MainActivityViewModel : ViewModel() {
 
             override fun onFinish() {
                 Log.d("Timer","Finished")
+                isTimerFinished.postValue(true)
             }
         }
         timer.start()

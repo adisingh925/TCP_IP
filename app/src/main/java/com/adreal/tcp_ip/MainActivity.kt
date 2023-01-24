@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.adreal.tcp_ip.Adapter.ChatAdapter
 import com.adreal.tcp_ip.DataClass.ChatModel
+import com.adreal.tcp_ip.SharedPreferences.SharedPreferences
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
 import com.adreal.tcp_ip.databinding.ActivityMainBinding
 import com.adreal.tcp_ip.databinding.ConfigureBinding
@@ -30,6 +31,8 @@ import java.io.DataOutputStream
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.*
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -64,12 +67,28 @@ class MainActivity : AppCompatActivity() {
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
         const val STUNTMAN_STUN_SERVER_IP = "18.191.223.12"
         const val STUNTMAN_STUN_SERVER_PORT_TCP = 3478
+        const val TIMER_TIME : Long = 3600000
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         darkTheme()
         setContentView(binding.root)
+
+        SharedPreferences.init(this)
+
+        if(SharedPreferences.read("UserId","null") == "null"){
+            val uuid = UUID.randomUUID().toString()
+            SharedPreferences.write("UserId",uuid)
+            Log.d("random UUID generated",uuid)
+        }
+
+        mainActivityViewModel.isTimerFinished.observe(this){
+            Log.d("reinitializing timer","reinitialized")
+            mainActivityViewModel.timer(TIMER_TIME)
+        }
+
+//        mainActivityViewModel.transmitTableUpdate("1","23","232")
 
         binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
         binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
@@ -313,7 +332,7 @@ class MainActivity : AppCompatActivity() {
                 mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
-                mainActivityViewModel.timer(86400000)
+                mainActivityViewModel.timer(TIMER_TIME)
                 displayProgressIndicator()
                 mainActivityViewModel.receiverData()
                 mainActivityViewModel.isObserverNeeded = true
