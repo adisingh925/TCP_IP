@@ -59,6 +59,7 @@ class MainActivityViewModel : ViewModel() {
     val isTcpRetryTimerFinished = MutableLiveData<Boolean>()
     val isConnectionTimerFinished = MutableLiveData<Boolean>()
     val isDisconnectedTimerFinished = MutableLiveData<Boolean>()
+    var isConnectionRestablished = MutableLiveData<Boolean>()
     lateinit var disconnectedTimer : CountDownTimer
     var isTcpRetryTimerInitialized = 0
     var isUdpRetryTimerInitialized = 0
@@ -90,7 +91,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun connectionTimer(){
-        connectionTimer = object : CountDownTimer(3000, 1000) {
+        connectionTimer = object : CountDownTimer(5000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
 //                Log.d("Udp Retry Timer","running")
             }
@@ -162,7 +163,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun timer(time: Long) {
-        timer = object : CountDownTimer(time, 2000) {
+        timer = object : CountDownTimer(time, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 Log.d("Time left",millisUntilFinished.toString())
                 CoroutineScope(Dispatchers.IO).launch {
@@ -429,6 +430,7 @@ class MainActivityViewModel : ViewModel() {
 
                             if(isConnectionEstablished.value == true){
                                 connectionTimer.cancel()
+                                isConnectionRestablished.postValue(true)
                                 CoroutineScope(Dispatchers.Main.immediate).launch {
                                     connectionTimer()
                                 }

@@ -83,8 +83,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     private lateinit var outputStream: DataOutputStream
 
     companion object {
-        const val PORT = 60001
-        const val TCP_PORT = 50009
+        const val PORT = 60005
+        const val TCP_PORT = 50001
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -124,6 +124,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         }
 
         mainActivityViewModel.isConnectionTimerFinished.observe(this){
+            Log.d("Connection Timer","finished")
+            Toast.makeText(this,"Host Not Responding...",Toast.LENGTH_SHORT).show()
             binding.mainActivityLinesrProgressIndicator.isVisible = true
             mainActivityViewModel.isProgressBarVisible = true
             binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
@@ -140,6 +142,13 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 mainActivityViewModel.isTimerRunning.postValue(false)
                 mainActivityViewModel.timer.cancel()
             }
+        }
+
+        mainActivityViewModel.isConnectionRestablished.observe(this){
+            mainActivityViewModel.isProgressBarVisible = true
+            binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+            binding.mainActivityLinesrProgressIndicator.isIndeterminate = false
+            binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
         }
 
         mainActivityViewModel.isUdpRetryTimerFinished.observe(this){
