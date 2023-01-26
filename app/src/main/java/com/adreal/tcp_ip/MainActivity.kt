@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     private lateinit var outputStream: DataOutputStream
 
     companion object {
-        const val PORT = 60005
+        const val PORT = 60001
         const val TCP_PORT = 50001
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
@@ -124,31 +124,32 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         }
 
         mainActivityViewModel.isConnectionTimerFinished.observe(this){
-            Log.d("Connection Timer","finished")
-            Toast.makeText(this,"Host Not Responding...",Toast.LENGTH_SHORT).show()
-            binding.mainActivityLinesrProgressIndicator.isVisible = true
-            mainActivityViewModel.isProgressBarVisible = true
-            binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
-            mainActivityViewModel.disconnectedTimer()
-            mainActivityViewModel.isDisconnectedTimerRunning.postValue(true)
-        }
-
-        mainActivityViewModel.isDisconnectedTimerFinished.observe(this){
-            Toast.makeText(this,"Connection Terminated...",Toast.LENGTH_SHORT).show()
-            mainActivityViewModel.isProgressBarVisible = false
-            binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
-
-            if(mainActivityViewModel.isTimerRunning.value == true){
-                mainActivityViewModel.isTimerRunning.postValue(false)
-                mainActivityViewModel.timer.cancel()
+            if(it){
+                Log.d("Connection Timer","finished")
+                binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+                binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
+                mainActivityViewModel.disconnectedTimer()
             }
         }
 
-        mainActivityViewModel.isConnectionRestablished.observe(this){
-            mainActivityViewModel.isProgressBarVisible = true
-            binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
-            binding.mainActivityLinesrProgressIndicator.isIndeterminate = false
-            binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
+        mainActivityViewModel.isDisconnectedTimerFinished.observe(this){
+            if(it){
+                Toast.makeText(this,"Connection Terminated...",Toast.LENGTH_SHORT).show()
+
+                mainActivityViewModel.isProgressBarVisible = false
+                binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+
+                if(mainActivityViewModel.isTimerRunning.value == true){
+                    mainActivityViewModel.isTimerRunning.postValue(false)
+                    mainActivityViewModel.timer.cancel()
+                }
+
+                mainActivityViewModel.isEditTextEnabled = false
+                mainActivityViewModel.isButtonEnabled = false
+
+                binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
+                binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
+            }
         }
 
         mainActivityViewModel.isUdpRetryTimerFinished.observe(this){
@@ -202,13 +203,11 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                     Log.d("connection", "established")
                     Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
-                    mainActivityViewModel.connectionTimer()
-
                     mainActivityViewModel.isProgressBarVisible = false
                     mainActivityViewModel.isButtonEnabled = true
                     mainActivityViewModel.isEditTextEnabled = true
 
-                    binding.mainActivityLinesrProgressIndicator.isVisible = true
+                    binding.mainActivityLinesrProgressIndicator.isVisible = !(mainActivityViewModel.isProgressBarVisible)
                     binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
                     binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
 
@@ -219,8 +218,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 mainActivityViewModel.isObserverNeeded = false
             }
         }
-
-
 
         mainActivityViewModel.chatList.observe(this) {
             adapter.setData(it)
@@ -451,10 +448,11 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     }
 
     private fun displayProgressIndicator() {
+        Log.d("displaying progress indicator","display")
         mainActivityViewModel.isProgressBarVisible = true
         CoroutineScope(Dispatchers.Main.immediate).launch {
             binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
-            binding.mainActivityLinesrProgressIndicator.isIndeterminate = true
+            binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
         }
     }
 
@@ -551,8 +549,17 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             mainActivityViewModel.isTimerRunning.postValue(true)
         }
 
+        if(mainActivityViewModel.isConnectionTimerRunning.value == true){
+            mainActivityViewModel.connectionTimer.cancel()
+            mainActivityViewModel.isConnectionTimerRunning.postValue(false)
+        }
+
+        if(mainActivityViewModel.isDisconnectedTimerRunning.value == true){
+            mainActivityViewModel.disconnectedTimer.cancel()
+            mainActivityViewModel.isDisconnectedTimerRunning.postValue(false)
+        }
+
         mainActivityViewModel.disconnectedTimer()
-        mainActivityViewModel.isDisconnectedTimerRunning.postValue(true)
 
         if(token != null){
             mainActivityViewModel.transmitTableUpdate(

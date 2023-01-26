@@ -50,7 +50,8 @@ class MainActivityViewModel : ViewModel() {
 
     val isTimerFinished = MutableLiveData<Boolean>()
     val isTimerRunning = MutableLiveData(false)
-    val isDisconnectedTimerRunning = MutableLiveData(false)
+    val isDisconnectedTimerRunning = MutableLiveData<Boolean>()
+    val isConnectionTimerRunning = MutableLiveData<Boolean>()
 
     private lateinit var udpRetryTimer: CountDownTimer
     private lateinit var tcpRetryTimer : CountDownTimer
@@ -59,7 +60,7 @@ class MainActivityViewModel : ViewModel() {
     val isTcpRetryTimerFinished = MutableLiveData<Boolean>()
     val isConnectionTimerFinished = MutableLiveData<Boolean>()
     val isDisconnectedTimerFinished = MutableLiveData<Boolean>()
-    var isConnectionRestablished = MutableLiveData<Boolean>()
+    var isConnectionReestablished = MutableLiveData<Boolean>()
     lateinit var disconnectedTimer : CountDownTimer
     var isTcpRetryTimerInitialized = 0
     var isUdpRetryTimerInitialized = 0
@@ -77,27 +78,33 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun disconnectedTimer(){
+        isDisconnectedTimerRunning.postValue(true)
+
         disconnectedTimer = object : CountDownTimer(10000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-//                Log.d("Udp Retry Timer","running")
+
             }
 
             override fun onFinish() {
                 Log.d("Disconnected Timer","Finished")
                 isDisconnectedTimerFinished.postValue(true)
+                isDisconnectedTimerRunning.postValue(false)
             }
         }
         disconnectedTimer.start()
     }
 
-    fun connectionTimer(){
+    private fun connectionTimer(){
+        isConnectionTimerRunning.postValue(true)
+
         connectionTimer = object : CountDownTimer(5000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-//                Log.d("Udp Retry Timer","running")
+
             }
 
             override fun onFinish() {
                 Log.d("connection Timer","Finished")
+                isConnectionTimerRunning.postValue(false)
                 isConnectionTimerFinished.postValue(true)
             }
         }
@@ -427,10 +434,14 @@ class MainActivityViewModel : ViewModel() {
 
                             udpReceiverData.clear()
                         } else {
+                            isConnectionEstablished.postValue(true)
 
-                            if(isConnectionEstablished.value == true){
+                            if(isConnectionTimerRunning.value == true){
                                 connectionTimer.cancel()
-                                isConnectionRestablished.postValue(true)
+                                CoroutineScope(Dispatchers.Main.immediate).launch {
+                                    connectionTimer()
+                                }
+                            }else{
                                 CoroutineScope(Dispatchers.Main.immediate).launch {
                                     connectionTimer()
                                 }
@@ -441,7 +452,6 @@ class MainActivityViewModel : ViewModel() {
                                 isDisconnectedTimerRunning.postValue(false)
                             }
 
-                            isConnectionEstablished.postValue(true)
                         }
                     } else {
                         udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
