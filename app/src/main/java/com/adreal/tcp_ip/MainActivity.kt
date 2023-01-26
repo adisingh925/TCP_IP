@@ -190,12 +190,12 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                     mainActivityViewModel.isButtonEnabled = true
                     mainActivityViewModel.isEditTextEnabled = true
 
-                    binding.mainActivityLinesrProgressIndicator.isVisible =
-                        mainActivityViewModel.isProgressBarVisible
-                    binding.mainActivityUDPClientEditText.isEnabled =
-                        mainActivityViewModel.isEditTextEnabled
-                    binding.mainActivityUDPClientButton.isEnabled =
-                        mainActivityViewModel.isButtonEnabled
+                    binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
+
+                    binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
+
+                    binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
+                    binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
                 }
 
                 mainActivityViewModel.isObserverNeeded = false
@@ -218,10 +218,11 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         mainActivityViewModel.stunDataReceived.observe(this) { data ->
 
             if(mainActivityViewModel.isTimerRunning.value == true){
+                Log.d("reinitializing connection","connecting")
                 initiateConnection(mainActivityViewModel.receiverIP,mainActivityViewModel.receiverPORT.toString(),mainActivityViewModel.token)
             }
 
-            Log.d("udp","stun")
+            Log.d("stun","response received")
 
             binding.mainActivityPeopleButton.isEnabled = true
             binding.mainActivityConfigureButton.isEnabled = true
@@ -432,8 +433,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     private fun displayProgressIndicator() {
         mainActivityViewModel.isProgressBarVisible = true
         CoroutineScope(Dispatchers.Main.immediate).launch {
-            binding.mainActivityLinesrProgressIndicator.isVisible =
-                mainActivityViewModel.isProgressBarVisible
+            binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+            binding.mainActivityLinesrProgressIndicator.isIndeterminate = true
         }
     }
 
@@ -525,6 +526,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         mainActivityViewModel.receiverPORT = port.toInt()
 
         if (mainActivityViewModel.isTimerRunning.value == false) {
+            Log.d("starting timer","started")
             mainActivityViewModel.timer(TIMER_TIME)
             mainActivityViewModel.isTimerRunning.postValue(true)
         }

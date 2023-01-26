@@ -46,7 +46,7 @@ class MainActivityViewModel : ViewModel() {
     var isEditTextEnabled : Boolean = false
     var isButtonEnabled = false
     var isProgressBarVisible = false
-    var isObserverNeeded = false
+    var isObserverNeeded = true
 
     val isTimerFinished = MutableLiveData<Boolean>()
     val isTimerRunning = MutableLiveData(false)
@@ -146,7 +146,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun timer(time: Long) {
-        timer = object : CountDownTimer(time, 1000) {
+        timer = object : CountDownTimer(time, 2000) {
             override fun onTick(millisUntilFinished: Long) {
                 Log.d("Time left",millisUntilFinished.toString())
                 CoroutineScope(Dispatchers.IO).launch {
@@ -161,7 +161,11 @@ class MainActivityViewModel : ViewModel() {
 
                     withContext(Dispatchers.IO) {
                         Log.d("sending...",p.data.toString())
-                        socket.send(p)
+                        try {
+                            socket.send(p)
+                        }catch (e : Exception){
+                            Log.d("timer send exception",e.message.toString())
+                        }
                     }
                 }
             }
@@ -369,9 +373,11 @@ class MainActivityViewModel : ViewModel() {
 
                 val receivedData = String(rp.data, 0, rp.data.indexOf(0))
 
-                Log.d("data, Length", receivedData + " " + receivedData.length)
+                Log.d("received data, Length", receivedData + " " + receivedData.length)
 
-                if(receivedData.length == 2){
+                val messageType = ((rp.data[0].toInt() shl 8) or rp.data[1].toInt()).toShort()
+
+                if(messageType == 0x0101.toShort()){
                     try {
                         val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                         receiveMH.parseAttributes(rp.data)
