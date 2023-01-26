@@ -126,8 +126,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         mainActivityViewModel.isConnectionTimerFinished.observe(this){
             if(it){
                 Log.d("Connection Timer","finished")
-                binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
-                binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
+                binding.mainActivityLinesrProgressIndicator.isVisible = true
+                binding.mainActivityLinesrProgressIndicator.isIndeterminate = true
                 mainActivityViewModel.disconnectedTimer()
             }
         }
@@ -449,7 +449,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
     private fun displayProgressIndicator() {
         Log.d("displaying progress indicator","display")
-        binding.mainActivityLinesrProgressIndicator.setProgressCompat(0, true)
         mainActivityViewModel.isProgressBarVisible = true
         CoroutineScope(Dispatchers.Main.immediate).launch {
             binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible

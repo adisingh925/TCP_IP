@@ -80,7 +80,7 @@ class MainActivityViewModel : ViewModel() {
     fun disconnectedTimer(){
         isDisconnectedTimerRunning.postValue(true)
 
-        disconnectedTimer = object : CountDownTimer(10000, 1000) {
+        disconnectedTimer = object : CountDownTimer(30000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
 
             }
