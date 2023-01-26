@@ -124,9 +124,21 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         }
 
         mainActivityViewModel.isConnectionTimerFinished.observe(this){
+            binding.mainActivityLinesrProgressIndicator.isVisible = true
+            mainActivityViewModel.isProgressBarVisible = true
+            binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
+            mainActivityViewModel.disconnectedTimer()
+            mainActivityViewModel.isDisconnectedTimerRunning.postValue(true)
+        }
+
+        mainActivityViewModel.isDisconnectedTimerFinished.observe(this){
+            Toast.makeText(this,"Connection Terminated...",Toast.LENGTH_SHORT).show()
+            mainActivityViewModel.isProgressBarVisible = false
+            binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+
             if(mainActivityViewModel.isTimerRunning.value == true){
-                mainActivityViewModel.timer.cancel()
                 mainActivityViewModel.isTimerRunning.postValue(false)
+                mainActivityViewModel.timer.cancel()
             }
         }
 
@@ -181,17 +193,14 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                     Log.d("connection", "established")
                     Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
-                    if(mainActivityViewModel.isSignalTimerRunning.value == true){
-                        mainActivityViewModel.connectionTimer.cancel()
-                        mainActivityViewModel.isSignalTimerRunning.postValue(false)
-                    }
+                    mainActivityViewModel.connectionTimer()
 
                     mainActivityViewModel.isProgressBarVisible = false
                     mainActivityViewModel.isButtonEnabled = true
                     mainActivityViewModel.isEditTextEnabled = true
 
+                    binding.mainActivityLinesrProgressIndicator.isVisible = true
                     binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
-
                     binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
 
                     binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
@@ -201,6 +210,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 mainActivityViewModel.isObserverNeeded = false
             }
         }
+
+
 
         mainActivityViewModel.chatList.observe(this) {
             adapter.setData(it)
@@ -530,6 +541,9 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             mainActivityViewModel.timer(TIMER_TIME)
             mainActivityViewModel.isTimerRunning.postValue(true)
         }
+
+        mainActivityViewModel.disconnectedTimer()
+        mainActivityViewModel.isDisconnectedTimerRunning.postValue(true)
 
         if(token != null){
             mainActivityViewModel.transmitTableUpdate(

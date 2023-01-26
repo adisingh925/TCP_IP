@@ -50,7 +50,7 @@ class MainActivityViewModel : ViewModel() {
 
     val isTimerFinished = MutableLiveData<Boolean>()
     val isTimerRunning = MutableLiveData(false)
-    val isSignalTimerRunning = MutableLiveData(false)
+    val isDisconnectedTimerRunning = MutableLiveData(false)
 
     private lateinit var udpRetryTimer: CountDownTimer
     private lateinit var tcpRetryTimer : CountDownTimer
@@ -58,6 +58,8 @@ class MainActivityViewModel : ViewModel() {
     val isUdpRetryTimerFinished = MutableLiveData<Boolean>()
     val isTcpRetryTimerFinished = MutableLiveData<Boolean>()
     val isConnectionTimerFinished = MutableLiveData<Boolean>()
+    val isDisconnectedTimerFinished = MutableLiveData<Boolean>()
+    lateinit var disconnectedTimer : CountDownTimer
     var isTcpRetryTimerInitialized = 0
     var isUdpRetryTimerInitialized = 0
 
@@ -73,6 +75,20 @@ class MainActivityViewModel : ViewModel() {
         DatagramSocket(MainActivity.PORT)
     }
 
+    fun disconnectedTimer(){
+        disconnectedTimer = object : CountDownTimer(10000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+//                Log.d("Udp Retry Timer","running")
+            }
+
+            override fun onFinish() {
+                Log.d("Disconnected Timer","Finished")
+                isDisconnectedTimerFinished.postValue(true)
+            }
+        }
+        disconnectedTimer.start()
+    }
+
     fun connectionTimer(){
         connectionTimer = object : CountDownTimer(3000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -80,7 +96,7 @@ class MainActivityViewModel : ViewModel() {
             }
 
             override fun onFinish() {
-                Log.d("Udp Retry Timer","Finished")
+                Log.d("connection Timer","Finished")
                 isConnectionTimerFinished.postValue(true)
             }
         }
@@ -410,6 +426,19 @@ class MainActivityViewModel : ViewModel() {
 
                             udpReceiverData.clear()
                         } else {
+
+                            if(isConnectionEstablished.value == true){
+                                connectionTimer.cancel()
+                                CoroutineScope(Dispatchers.Main.immediate).launch {
+                                    connectionTimer()
+                                }
+                            }
+
+                            if(isDisconnectedTimerRunning.value == true){
+                                disconnectedTimer.cancel()
+                                isDisconnectedTimerRunning.postValue(false)
+                            }
+
                             isConnectionEstablished.postValue(true)
                         }
                     } else {
