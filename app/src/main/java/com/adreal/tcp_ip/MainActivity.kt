@@ -20,6 +20,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.adreal.tcp_ip.Adapter.ChatAdapter
 import com.adreal.tcp_ip.Adapter.PeopleAdapter
+import com.adreal.tcp_ip.Connection.ConnectionLiveData
 import com.adreal.tcp_ip.Constants.Constants
 import com.adreal.tcp_ip.DataClass.ChatModel
 import com.adreal.tcp_ip.DataClass.ConnectionData
@@ -74,12 +75,16 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         Dialog(this)
     }
 
+    private val connectionLiveData by lazy {
+        ConnectionLiveData(this)
+    }
+
     private lateinit var inputStream: DataInputStream
     private lateinit var outputStream: DataOutputStream
 
     companion object {
         const val PORT = 60001
-        const val TCP_PORT = 50001
+        const val TCP_PORT = 50009
         const val GOOGLE_STUN_SERVER_IP = "74.125.197.127"
         const val GOOGLE_STUN_SERVER_PORT = 19302
         const val CONNECTION_ESTABLISH_STRING = "$@6%9*4!&2#0"
@@ -96,13 +101,51 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         SharedPreferences.init(this)
 
-        binding.mainActivityPeopleButton.isEnabled = false
+        mainActivityViewModel.receiverData()
+
+        binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+
+        if(mainActivityViewModel.isDataInitialized == 0){
+            connectionLiveData.observe(this){
+
+                binding.mainActivityPeopleButton.isEnabled = false
+                binding.mainActivityConfigureButton.isEnabled = false
+
+                if(it){
+                    Log.d("Main Activity","Online")
+                    mainActivityViewModel.sendBindingRequest()
+                    binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+                }else{
+                    Log.d("Main Activity","Offline")
+                }
+            }
+
+            mainActivityViewModel.isDataInitialized = 1
+        }
+
+        mainActivityViewModel.isConnectionTimerFinished.observe(this){
+            if(mainActivityViewModel.isTimerRunning.value == true){
+                mainActivityViewModel.timer.cancel()
+                mainActivityViewModel.isTimerRunning.postValue(false)
+            }
+        }
+
+        mainActivityViewModel.isUdpRetryTimerFinished.observe(this){
+            mainActivityViewModel.sendBindingRequest()
+            binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+        }
+
+        mainActivityViewModel.isTcpRetryTimerFinished.observe(this){
+            mainActivityViewModel.sendTcpBindingRequest()
+            binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+        }
 
         databaseViewModel.readAllData.observe(this){
             Log.d("people data activity",it.toString())
             for(i in it){
                 if(i.status == "2"){
-                    initiateConnection(i.ip,i.port)
+                    initiateConnection(i.ip,i.port,null)
+                    mainActivityViewModel.token = i.token
                     i.status = "1"
                     databaseViewModel.addData(i)
                 }
@@ -132,17 +175,16 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         initUserDialog()
         initRecycler()
 
-        if (mainActivityViewModel.isDataInitialized == 0) {
-            mainActivityViewModel.sendTcpBindingRequest()
-            mainActivityViewModel.sendBindingRequest()
-            mainActivityViewModel.isDataInitialized = 1
-        }
-
         mainActivityViewModel.isConnectionEstablished.observe(this@MainActivity) {
             if (mainActivityViewModel.isObserverNeeded) {
                 if (it) {
                     Log.d("connection", "established")
                     Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
+
+                    if(mainActivityViewModel.isSignalTimerRunning.value == true){
+                        mainActivityViewModel.connectionTimer.cancel()
+                        mainActivityViewModel.isSignalTimerRunning.postValue(false)
+                    }
 
                     mainActivityViewModel.isProgressBarVisible = false
                     mainActivityViewModel.isButtonEnabled = true
@@ -160,9 +202,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             }
         }
 
-        binding.mainActivityPrivateCredentials.text =
-            "${mainActivityViewModel.getIPAddress(true)} : $PORT"
-
         mainActivityViewModel.chatList.observe(this) {
             adapter.setData(it)
             recyclerView.scrollToPosition(it.size - 1)
@@ -177,7 +216,16 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         }
 
         mainActivityViewModel.stunDataReceived.observe(this) { data ->
+
+            if(mainActivityViewModel.isTimerRunning.value == true){
+                initiateConnection(mainActivityViewModel.receiverIP,mainActivityViewModel.receiverPORT.toString(),mainActivityViewModel.token)
+            }
+
+            Log.d("udp","stun")
+
             binding.mainActivityPeopleButton.isEnabled = true
+            binding.mainActivityConfigureButton.isEnabled = true
+
             var flag = 0
 
             binding.mainActivityPublicCredentials.text = "${data[0]} : ${data[1]}"
@@ -325,6 +373,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 inputStream = DataInputStream(withContext(Dispatchers.IO) {
                     tcpSocket.getInputStream()
                 })
+
                 outputStream = DataOutputStream(withContext(Dispatchers.IO) {
                     tcpSocket.getOutputStream()
                 })
@@ -440,7 +489,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
-                initiateConnection(bind.configureDialogReceiverIP.text.toString(),bind.configureDialogReceiverPORT.text.toString())
+                initiateConnection(bind.configureDialogReceiverIP.text.toString(),bind.configureDialogReceiverPORT.text.toString(),null)
                 dialog.dismiss()
             }
         }
@@ -466,22 +515,12 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
     override fun onItemClick(data: ConnectionData) {
         Log.d("people Item","clicked")
-
-        initiateConnection(data.ip,data.port)
-
-        mainActivityViewModel.transmitTableUpdate(
-            SharedPreferences.read("UserId", "null").toString(),
-            mainActivityViewModel.stunDataReceived.value?.get(0).toString(),
-            mainActivityViewModel.stunDataReceived.value?.get(1).toString(),
-            SharedPreferences.read("FcmToken", "null").toString(),
-            "/to/${data.token}"
-            ,"2"
-        )
-
+        initiateConnection(data.ip,data.port, data.token)
+        mainActivityViewModel.token = data.token
         userDialog.dismiss()
     }
 
-    private fun initiateConnection(ip : String, port : String){
+    private fun initiateConnection(ip : String, port : String, token : String?){
         mainActivityViewModel.receiverIP = ip
         mainActivityViewModel.receiverPORT = port.toInt()
 
@@ -490,8 +529,18 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             mainActivityViewModel.isTimerRunning.postValue(true)
         }
 
+        if(token != null){
+            mainActivityViewModel.transmitTableUpdate(
+                SharedPreferences.read("UserId", "null").toString(),
+                mainActivityViewModel.stunDataReceived.value?.get(0).toString(),
+                mainActivityViewModel.stunDataReceived.value?.get(1).toString(),
+                SharedPreferences.read("FcmToken", "null").toString(),
+                "/to/$token"
+                ,"2"
+            )
+        }
+
         displayProgressIndicator()
-        mainActivityViewModel.receiverData()
         mainActivityViewModel.isObserverNeeded = true
     }
 }

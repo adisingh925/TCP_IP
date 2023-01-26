@@ -14,7 +14,6 @@ import de.javawi.jstun.attribute.MappedAddress
 import de.javawi.jstun.attribute.MessageAttributeInterface
 import de.javawi.jstun.header.MessageHeader
 import de.javawi.jstun.header.MessageHeaderInterface
-import io.ktor.util.reflect.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,7 +28,6 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.*
 import java.util.*
-import kotlin.collections.ArrayList
 
 class MainActivityViewModel : ViewModel() {
 
@@ -52,9 +50,69 @@ class MainActivityViewModel : ViewModel() {
 
     val isTimerFinished = MutableLiveData<Boolean>()
     val isTimerRunning = MutableLiveData(false)
+    val isSignalTimerRunning = MutableLiveData(false)
+
+    private lateinit var udpRetryTimer: CountDownTimer
+    private lateinit var tcpRetryTimer : CountDownTimer
+    lateinit var connectionTimer : CountDownTimer
+    val isUdpRetryTimerFinished = MutableLiveData<Boolean>()
+    val isTcpRetryTimerFinished = MutableLiveData<Boolean>()
+    val isConnectionTimerFinished = MutableLiveData<Boolean>()
+    var isTcpRetryTimerInitialized = 0
+    var isUdpRetryTimerInitialized = 0
+
+    private lateinit var outputStream: DataOutputStream
+    private lateinit var inputStream: DataInputStream
+    private lateinit var ma : MappedAddress
+
+    var isBindingRequestInit = 0
+
+    var token : String? = null
 
     private val socket by lazy {
         DatagramSocket(MainActivity.PORT)
+    }
+
+    fun connectionTimer(){
+        connectionTimer = object : CountDownTimer(3000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+//                Log.d("Udp Retry Timer","running")
+            }
+
+            override fun onFinish() {
+                Log.d("Udp Retry Timer","Finished")
+                isConnectionTimerFinished.postValue(true)
+            }
+        }
+        connectionTimer.start()
+    }
+
+    private fun udpRetryTimer(){
+        udpRetryTimer = object : CountDownTimer(3000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+//                Log.d("Udp Retry Timer","running")
+            }
+
+            override fun onFinish() {
+                Log.d("Udp Retry Timer","Finished")
+                isUdpRetryTimerFinished.postValue(true)
+            }
+        }
+        udpRetryTimer.start()
+    }
+
+    private fun tcpRetryTimer(){
+        tcpRetryTimer = object : CountDownTimer(3000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+//                Log.d("Tcp Retry Timer","running")
+            }
+
+            override fun onFinish() {
+                Log.d("Tcp Retry Timer","Finished")
+                isTcpRetryTimerFinished.postValue(true)
+            }
+        }
+        tcpRetryTimer.start()
     }
 
     fun transmitTableUpdate(userId : String, publicIp : String, publicPort : String, token : String, destination : String,status : String){
@@ -142,14 +200,15 @@ class MainActivityViewModel : ViewModel() {
                     }
                 }
             }
-        } catch (_: Exception) {
-
+        } catch (e : Exception) {
+            Log.d("ip address exception",e.message.toString())
         }
         return ""
     }
 
     fun sendTcpBindingRequest() {
         CoroutineScope(Dispatchers.IO).launch {
+            isTcpRetryTimerInitialized = 0
             val sendMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
             val changeRequest = ChangeRequest()
             sendMH.addMessageAttribute(changeRequest)
@@ -158,40 +217,93 @@ class MainActivityViewModel : ViewModel() {
             // Create a socket to connect to the STUN server
             val tcpSocket = Socket()
             tcpSocket.reuseAddress = true
-            tcpSocket.bind(InetSocketAddress(MainActivity.TCP_PORT))
-            tcpSocket.connect(
-                InetSocketAddress(
-                    MainActivity.STUNTMAN_STUN_SERVER_IP,
-                    MainActivity.STUNTMAN_STUN_SERVER_PORT_TCP
-                )
-            )
+            withContext(Dispatchers.IO) {
+                tcpSocket.bind(InetSocketAddress(MainActivity.TCP_PORT))
+            }
 
-            val inputStream = DataInputStream(tcpSocket.getInputStream())
-            val outputStream = DataOutputStream(tcpSocket.getOutputStream())
+            withContext(Dispatchers.IO) {
+                try {
+                    tcpSocket.connect(
+                        InetSocketAddress(
+                            MainActivity.STUNTMAN_STUN_SERVER_IP,
+                            MainActivity.STUNTMAN_STUN_SERVER_PORT_TCP
+                        )
+                    )
+                }catch (e : Exception){
+                    Log.d("tcp binding request connect failed",e.message.toString())
+                    initTcpRetryTimer()
+                }
+            }
+
+            try {
+                inputStream = DataInputStream(withContext(Dispatchers.IO) {
+                    tcpSocket.getInputStream()
+                })
+            }catch (e : Exception){
+                Log.d("tcp binding request input stream failed",e.message.toString())
+                initTcpRetryTimer()
+            }
+
+            try {
+                outputStream = DataOutputStream(withContext(Dispatchers.IO) {
+                    tcpSocket.getOutputStream()
+                })
+            }catch (e : Exception){
+                Log.d("tcp binding request output stream failed",e.message.toString())
+                initTcpRetryTimer()
+            }
 
             // Send the STUN request using TCP
-            outputStream.write(data)
-            outputStream.flush()
+            withContext(Dispatchers.IO) {
+                try {
+                    outputStream.write(data)
+                }catch (e : Exception){
+                    Log.d("tcp binding request output write stream failed",e.message.toString())
+                    initTcpRetryTimer()
+                }
+            }
+            withContext(Dispatchers.IO) {
+                try {
+                    outputStream.flush()
+                }catch (e : Exception){
+                    Log.d("tcp binding request output flush failed",e.message.toString())
+                    initTcpRetryTimer()
+                }
+
+            }
 
             // Wait for the STUN response
             val response = ByteArray(1024)
-            inputStream.read(response)
+            withContext(Dispatchers.IO) {
+                try {
+                    inputStream.read(response)
+                }catch (e : Exception){
+                    Log.d("tcp binding request input stream read failed",e.message.toString())
+                    initTcpRetryTimer()
+                }
+            }
 
-            val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-            receiveMH.parseAttributes(response)
-            val ma: MappedAddress =
-                receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
-
-            // Process the response
-            tcpStunDataReceived.postValue("${ma.address} : ${ma.port}")
+            try {
+                val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                receiveMH.parseAttributes(response)
+                ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+                // Process the response
+                tcpStunDataReceived.postValue("${ma.address} : ${ma.port}")
+            }catch (e : Exception){
+                Log.d("tcp binding request parsing failed",e.message.toString())
+                initTcpRetryTimer()
+            }
 
             // Close the socket
-            tcpSocket.close()
+            withContext(Dispatchers.IO) {
+                tcpSocket.close()
+            }
         }
     }
 
     fun sendBindingRequest() {
         CoroutineScope(Dispatchers.IO).launch {
+            isUdpRetryTimerInitialized = 0
             val sendMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
             val changeRequest = ChangeRequest()
             sendMH.addMessageAttribute(changeRequest)
@@ -207,24 +319,39 @@ class MainActivityViewModel : ViewModel() {
                     MainActivity.GOOGLE_STUN_SERVER_PORT
                 )
                 withContext(Dispatchers.IO) {
-                    socket.send(p)
+                    try {
+                        socket.send(p)
+                    }catch (e : Exception){
+                        Log.d("udp binding request send failed",e.message.toString())
+                        initUdpRetryTimer()
+                    }
                 }
 
-                val rp = DatagramPacket(ByteArray(32), 32)
-
-                withContext(Dispatchers.IO) {
-                    socket.receive(rp)
-                }
-
-                val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-                receiveMH.parseAttributes(rp.data)
-                val ma: MappedAddress = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
-
-                val list = kotlin.collections.ArrayList<String>()
-                list.add(ma.address.toString())
-                list.add(ma.port.toString())
-
-                stunDataReceived.postValue(list)
+//                val rp = DatagramPacket(ByteArray(32), 32)
+//
+//                withContext(Dispatchers.IO) {
+//                    try {
+//                        socket.receive(rp)
+//                    }catch (e : Exception){
+//                        Log.d("udp binding request receive failed",e.message.toString())
+//                        initUdpRetryTimer()
+//                    }
+//                }
+//
+//                try {
+//                    val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+//                    receiveMH.parseAttributes(rp.data)
+//                    ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+//                }catch (e : Exception){
+//                    Log.d("udp binding parsing error",e.message.toString())
+//                    initUdpRetryTimer()
+//                }
+//
+//                val list = kotlin.collections.ArrayList<String>()
+//                list.add(ma.address.toString())
+//                list.add(ma.port.toString())
+//
+//                stunDataReceived.postValue(list)
             }
         }
     }
@@ -242,29 +369,46 @@ class MainActivityViewModel : ViewModel() {
 
                 val receivedData = String(rp.data, 0, rp.data.indexOf(0))
 
-                Log.d("data", receivedData)
+                Log.d("data, Length", receivedData + " " + receivedData.length)
 
-                if (receivedData.toByteArray().size < 256) {
+                if(receivedData.length == 2){
+                    try {
+                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                        receiveMH.parseAttributes(rp.data)
+                        ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
-                    if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING) {
+                        val list = kotlin.collections.ArrayList<String>()
+                        list.add(ma.address.toString())
+                        list.add(ma.port.toString())
 
-                        udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
-
-                        chatData.add(
-                            ChatModel(
-                                1,
-                                udpReceiverData.toString(),
-                                System.currentTimeMillis()
-                            )
-                        )
-                        chatList.postValue(chatData)
-
-                        udpReceiverData.clear()
-                    } else {
-                        isConnectionEstablished.postValue(true)
+                        stunDataReceived.postValue(list)
+                    }catch (e : Exception){
+                        Log.d("udp binding parsing error",e.message.toString())
+                        initUdpRetryTimer()
                     }
-                } else {
-                    udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
+                }else{
+                    if (receivedData.toByteArray().size < 256) {
+
+                        if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING) {
+
+                            udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
+
+                            chatData.add(
+                                ChatModel(
+                                    1,
+                                    udpReceiverData.toString(),
+                                    System.currentTimeMillis()
+                                )
+                            )
+                            chatList.postValue(chatData)
+
+                            udpReceiverData.clear()
+                        } else {
+                            isConnectionEstablished.postValue(true)
+                        }
+                    } else {
+                        udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
+                    }
                 }
             }
         }
@@ -295,6 +439,26 @@ class MainActivityViewModel : ViewModel() {
             }
 
             Log.d("chunk size", chunk.toByteArray().size.toString())
+        }
+    }
+
+    private fun initTcpRetryTimer(){
+        if(isTcpRetryTimerInitialized == 0){
+            Log.d("tcp retry called","init")
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                tcpRetryTimer()
+            }
+            isTcpRetryTimerInitialized = 1
+        }
+    }
+
+    private fun initUdpRetryTimer(){
+        if(isUdpRetryTimerInitialized == 0){
+            Log.d("udp retry called","init")
+            CoroutineScope(Dispatchers.Main.immediate).launch {
+                udpRetryTimer()
+            }
+            isUdpRetryTimerInitialized = 1
         }
     }
 }
