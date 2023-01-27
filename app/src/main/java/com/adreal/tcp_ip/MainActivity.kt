@@ -327,6 +327,21 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                         mainActivityViewModel.timer.cancel()
                         mainActivityViewModel.isTimerRunning.postValue(false)
                     }
+
+                    mainActivityViewModel.isConnectionEstablished.postValue(false)
+
+                    if(mainActivityViewModel.isConnectionTimerRunning.value == true){
+                        mainActivityViewModel.connectionTimer.cancel()
+                        mainActivityViewModel.isConnectionTimerRunning.postValue(false)
+                    }
+
+                    if(mainActivityViewModel.isDisconnectedTimerRunning.value == true){
+                        mainActivityViewModel.disconnectedTimer.cancel()
+                        mainActivityViewModel.isDisconnectedTimerRunning.postValue(false)
+                        mainActivityViewModel.isDisconnectedTimerFinished.postValue(true)
+                    }else{
+                        mainActivityViewModel.isDisconnectedTimerFinished.postValue(true)
+                    }
                 }
 
                 if (text.isNotBlank()) {
@@ -395,7 +410,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                     createToast(e.message.toString())
                     Log.d("tcp server accept failed", e.message.toString())
                 }
-
             }
         }
 
