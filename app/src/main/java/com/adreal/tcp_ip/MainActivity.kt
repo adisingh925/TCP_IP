@@ -5,9 +5,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.provider.Contacts.People
-import android.provider.Settings
-import android.provider.Settings.*
+import android.provider.Settings.Secure
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -38,11 +36,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.lang.System
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.*
 
 
 class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
@@ -180,7 +176,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             Log.d("people data activity", it.toString())
             for (i in it) {
                 if (i.status == "2") {
-                    initiateConnection(i.ip, i.port, null,false)
+                    initiateConnection(i.ip, i.port, null, false)
                     mainActivityViewModel.token = i.token
                     i.status = "1"
                     databaseViewModel.addData(i)
@@ -519,16 +515,16 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
     override fun onItemClick(data: ConnectionData) {
         Log.d("people Item", "clicked")
-        initiateConnection(data.ip, data.port, data.token,true)
+        initiateConnection(data.ip, data.port, data.token, true)
         mainActivityViewModel.token = data.token
         userDialog.dismiss()
     }
 
-    private fun initiateConnection(ip: String, port: String, token: String?,exitChat : Boolean) {
+    private fun initiateConnection(ip: String, port: String, token: String?, exitChat: Boolean) {
 
-        if(mainActivityViewModel.isConnectionEstablished.value == true){
+        if (mainActivityViewModel.isConnectionEstablished.value == true) {
             if (exitChat && mainActivityViewModel.receiverIP != "" && mainActivityViewModel.receiverPORT != 0) {
-                if(ip != mainActivityViewModel.receiverIP){
+                if (ip != mainActivityViewModel.receiverIP) {
                     mainActivityViewModel.sendData(EXIT_CHAT)
                 }
             }
@@ -544,7 +540,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             mainActivityViewModel.timer(TIMER_TIME)
         }
 
-        if(mainActivityViewModel.isDisconnectedTimerRunning.value == true){
+        if (mainActivityViewModel.isDisconnectedTimerRunning.value == true) {
             mainActivityViewModel.disconnectedTimer.cancel()
         }
 
@@ -615,7 +611,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         binding.mainActivityConfigureButton.isEnabled = isEnabled
     }
 
-    private fun setLocalIp(text : String){
+    private fun setLocalIp(text: String) {
         binding.mainActivityPrivateCredentials.text = text
     }
 
