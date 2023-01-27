@@ -419,7 +419,7 @@ class MainActivityViewModel : ViewModel() {
                 }else{
                     if (receivedData.toByteArray().size < 256) {
 
-                        if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING) {
+                        if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING && receivedData != MainActivity.EXIT_CHAT) {
 
                             udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
 
@@ -434,26 +434,61 @@ class MainActivityViewModel : ViewModel() {
 
                             udpReceiverData.clear()
                         } else {
-                            if(isConnectionEstablished.value == false){
-                                isConnectionEstablished.postValue(true)
-                            }
+                            if(receivedData != MainActivity.EXIT_CHAT){
+                                if(isConnectionEstablished.value == false){
+                                    isConnectionEstablished.postValue(true)
+                                }
 
-                            if(isConnectionTimerRunning.value == true){
-                                connectionTimer.cancel()
-                                CoroutineScope(Dispatchers.Main.immediate).launch {
-                                    connectionTimer()
+                                if(isConnectionTimerRunning.value == true){
+                                    connectionTimer.cancel()
+                                    CoroutineScope(Dispatchers.Main.immediate).launch {
+                                        connectionTimer()
+                                    }
+                                }else{
+                                    CoroutineScope(Dispatchers.Main.immediate).launch {
+                                        connectionTimer()
+                                    }
+                                }
+
+                                if(isDisconnectedTimerRunning.value == true){
+                                    disconnectedTimer.cancel()
+                                    isDisconnectedTimerRunning.postValue(false)
                                 }
                             }else{
-                                CoroutineScope(Dispatchers.Main.immediate).launch {
-                                    connectionTimer()
+                                udpReceiverData.append("Person has left the chat.")
+
+                                chatData.add(
+                                    ChatModel(
+                                        1,
+                                        udpReceiverData.toString(),
+                                        System.currentTimeMillis()
+                                    )
+                                )
+
+                                chatList.postValue(chatData)
+
+                                udpReceiverData.clear()
+
+                                isConnectionEstablished.postValue(false)
+
+                                if(isTimerRunning.value == true){
+                                    timer.cancel()
+                                    isTimerRunning.postValue(false)
+                                }
+
+                                if(isConnectionTimerRunning.value == true){
+                                    connectionTimer.cancel()
+                                    isConnectionTimerRunning.postValue(false)
+                                }
+
+                                if(isDisconnectedTimerRunning.value == true){
+                                    disconnectedTimer.cancel()
+                                    isDisconnectedTimerRunning.postValue(false)
+                                    isDisconnectedTimerFinished.postValue(true)
+                                }else{
+                                    isDisconnectedTimerFinished.postValue(true)
                                 }
                             }
-
-                            if(isDisconnectedTimerRunning.value == true){
-                                disconnectedTimer.cancel()
-                                isDisconnectedTimerRunning.postValue(false)
-                            }
-
                         }
                     } else {
                         udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))

@@ -92,6 +92,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         const val STUNTMAN_STUN_SERVER_PORT_TCP = 3478
         const val TIMER_TIME: Long = 3600000
         const val TOPIC_DESTINATION = "/topics/${Constants.FCM_TOPIC}"
+        const val EXIT_CHAT = "EXIT_CHAT"
+        const val TERMINATION_MESSAGE = ""
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -202,7 +204,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
         binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
-        binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+        binding.mainActivityLinesrProgressIndicator.isVisible =
+            mainActivityViewModel.isProgressBarVisible
 
         initDialog()
         initUserDialog()
@@ -318,12 +321,20 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         binding.mainActivityUDPClientButton.setOnClickListener {
             if (mainActivityViewModel.mode == 1) {
                 val text = binding.mainActivityUDPClientEditText.text.toString().trim()
+
+                if(text == EXIT_CHAT){
+                    if(mainActivityViewModel.isTimerRunning.value == true){
+                        mainActivityViewModel.timer.cancel()
+                        mainActivityViewModel.isTimerRunning.postValue(false)
+                    }
+                }
+
                 if (text.isNotBlank()) {
                     mainActivityViewModel.sendData(text)
                     binding.mainActivityUDPClientEditText.setText("")
                 }
             } else {
-
+                //yet to code
             }
         }
     }
@@ -338,7 +349,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
 
         databaseViewModel.readAllData.observe(this) {
-            Log.d("people data", it.toString())
+            Log.d("Dialog live data","running")
             peopleAdapter.setData(it)
         }
 
@@ -535,8 +546,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         bind.configureTcpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT =
-                    bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 binding.mainActivityConfigureButton.isVisible = false
@@ -584,15 +594,25 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         mainActivityViewModel.disconnectedTimer()
 
         if (token != null) {
-            mainActivityViewModel.transmitTableUpdate(
-                SharedPreferences.read("UserId", "null").toString(),
+            sendTableUpdate(
                 mainActivityViewModel.stunDataReceived.value?.get(0).toString(),
                 mainActivityViewModel.stunDataReceived.value?.get(1).toString(),
-                SharedPreferences.read("FcmToken", "null").toString(),
-                "/to/$token", "2"
+                "2",
+                token
             )
         }
 
         displayProgressIndicator()
+    }
+
+    private fun sendTableUpdate(myIp: String, myPort: String, status: String, receiverToken: String) {
+        mainActivityViewModel.transmitTableUpdate(
+            SharedPreferences.read("UserId", "null").toString(),
+            myIp,
+            myPort,
+            SharedPreferences.read("FcmToken", "null").toString(),
+            "/to/$receiverToken",
+            status
+        )
     }
 }
