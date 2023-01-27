@@ -105,21 +105,19 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         mainActivityViewModel.receiverData()
 
-        binding.mainActivityPrivateCredentials.text =
-            "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+        setLocalIp("${mainActivityViewModel.getIPAddress(true)} : $PORT")
 
         if (mainActivityViewModel.isDataInitialized == 0) {
             connectionLiveData.observe(this) {
 
                 mainActivityViewModel.isConnectionEstablished.postValue(false)
-                binding.mainActivityPeopleButton.isEnabled = false
-                binding.mainActivityConfigureButton.isEnabled = false
+                handleConfigurationButton(false)
+                handleSendViews(false)
 
                 if (it) {
                     Log.d("Main Activity", "Online")
                     mainActivityViewModel.sendBindingRequest()
-                    binding.mainActivityPrivateCredentials.text =
-                        "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+                    setLocalIp("${mainActivityViewModel.getIPAddress(true)} : $PORT")
                 } else {
                     Log.d("Main Activity", "Offline")
                 }
@@ -132,8 +130,12 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             if (it) {
                 Log.d("Connection Timer", "finished")
                 mainActivityViewModel.isConnectionEstablished.postValue(false)
-                binding.mainActivityLinesrProgressIndicator.isVisible = true
-                binding.mainActivityLinesrProgressIndicator.isIndeterminate = true
+
+                handleProgressBar(
+                    visible = mainActivityViewModel.isProgressBarVisible,
+                    indeterminate = mainActivityViewModel.isProgressBarVisible
+                )
+
                 mainActivityViewModel.disconnectedTimer()
             }
         }
@@ -145,21 +147,20 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 mainActivityViewModel.isConnectionEstablished.postValue(false)
 
                 mainActivityViewModel.isProgressBarVisible = false
-                binding.mainActivityLinesrProgressIndicator.isVisible =
+
+                handleProgressBar(
+                    mainActivityViewModel.isProgressBarVisible,
                     mainActivityViewModel.isProgressBarVisible
+                )
 
-                if (mainActivityViewModel.isTimerRunning.value == true) {
-                    mainActivityViewModel.isTimerRunning.postValue(false)
-                    mainActivityViewModel.timer.cancel()
-                }
+                handleTimersCancellation(
+                    isDisconnectedTimerFinished = false,
+                    cancelMainTimer = true,
+                    cancelConnectionTimer = false,
+                    cancelDisconnectedTimer = false
+                )
 
-                mainActivityViewModel.isEditTextEnabled = false
-                mainActivityViewModel.isButtonEnabled = false
-
-                binding.mainActivityUDPClientEditText.isEnabled =
-                    mainActivityViewModel.isEditTextEnabled
-                binding.mainActivityUDPClientButton.isEnabled =
-                    mainActivityViewModel.isButtonEnabled
+                handleSendViews(false)
             }
         }
 
@@ -179,7 +180,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             Log.d("people data activity", it.toString())
             for (i in it) {
                 if (i.status == "2") {
-                    initiateConnection(i.ip, i.port, null)
+                    initiateConnection(i.ip, i.port, null,false)
                     mainActivityViewModel.token = i.token
                     i.status = "1"
                     databaseViewModel.addData(i)
@@ -202,35 +203,24 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             mainActivityViewModel.timer(TIMER_TIME)
         }
 
-        binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
-        binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
-        binding.mainActivityLinesrProgressIndicator.isVisible =
-            mainActivityViewModel.isProgressBarVisible
+        handleSendViews(mainActivityViewModel.isEditTextEnabled)
+        handleProgressBar(mainActivityViewModel.isProgressBarVisible, true)
 
         initDialog()
         initUserDialog()
         initRecycler()
 
         mainActivityViewModel.isConnectionEstablished.observe(this@MainActivity) {
-
             if (it) {
                 Log.d("connection", "established")
                 Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
-                mainActivityViewModel.isProgressBarVisible = false
-                mainActivityViewModel.isButtonEnabled = true
-                mainActivityViewModel.isEditTextEnabled = true
-
-                binding.mainActivityLinesrProgressIndicator.isVisible =
+                handleProgressBar(
+                    mainActivityViewModel.isProgressBarVisible,
                     !(mainActivityViewModel.isProgressBarVisible)
-                binding.mainActivityLinesrProgressIndicator.isIndeterminate =
-                    mainActivityViewModel.isProgressBarVisible
-                binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
+                )
 
-                binding.mainActivityUDPClientEditText.isEnabled =
-                    mainActivityViewModel.isEditTextEnabled
-                binding.mainActivityUDPClientButton.isEnabled =
-                    mainActivityViewModel.isButtonEnabled
+                handleSendViews(true)
             }
         }
 
@@ -249,19 +239,21 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         mainActivityViewModel.stunDataReceived.observe(this) { data ->
 
-            if (mainActivityViewModel.isTimerRunning.value == true) {
-                Log.d("reinitializing connection", "connecting")
-                initiateConnection(
-                    mainActivityViewModel.receiverIP,
-                    mainActivityViewModel.receiverPORT.toString(),
-                    mainActivityViewModel.token
-                )
-            }
-
             Log.d("stun", "response received")
 
-            binding.mainActivityPeopleButton.isEnabled = true
-            binding.mainActivityConfigureButton.isEnabled = true
+            configureLocalIpAndPort(data[0], data[1])
+
+//            if (mainActivityViewModel.isTimerRunning.value == true) {
+//                Log.d("reinitializing connection", "connecting")
+//                initiateConnection(
+//                    mainActivityViewModel.receiverIP,
+//                    mainActivityViewModel.receiverPORT.toString(),
+//                    mainActivityViewModel.token,
+//                    false
+//                )
+//            }
+
+            handleConfigurationButton(true)
 
             binding.mainActivityPublicCredentials.text = "${data[0]} : ${data[1]}"
 
@@ -271,50 +263,13 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                         if (it.isSuccessful) {
                             SharedPreferences.write("isSubscribed", "y")
                             Log.d("Fcm subscribe", "success")
-                            if (SharedPreferences.read("myIp", "null") == "null") {
-                                SharedPreferences.write("myIp", data[0])
-                            } else if (SharedPreferences.read("myIp", "null") != data[0]) {
-                                SharedPreferences.write("myIp", data[0])
-                            }
-
-                            if (SharedPreferences.read("myPort", "null") == "null") {
-                                SharedPreferences.write("myPort", data[1])
-                            } else if (SharedPreferences.read("myPort", "null") != data[1]) {
-                                SharedPreferences.write("myPort", data[1])
-                            }
-
-                            mainActivityViewModel.transmitTableUpdate(
-                                SharedPreferences.read("UserId", "null").toString(),
-                                data[0],
-                                data[1],
-                                SharedPreferences.read("FcmToken", "null").toString(),
-                                TOPIC_DESTINATION,
-                                "1"
-                            )
+                            sendTableUpdate(data[0], data[1], "1", TOPIC_DESTINATION)
                         } else {
                             Log.d("Fcm subscribe", "failed")
                         }
                     }
             } else {
-                if (SharedPreferences.read("myIp", "null") == "null") {
-                    SharedPreferences.write("myIp", data[0])
-                } else if (SharedPreferences.read("myIp", "null") != data[0]) {
-                    SharedPreferences.write("myIp", data[0])
-                }
-
-                if (SharedPreferences.read("myPort", "null") == "null") {
-                    SharedPreferences.write("myPort", data[1])
-                } else if (SharedPreferences.read("myPort", "null") != data[1]) {
-                    SharedPreferences.write("myPort", data[1])
-                }
-
-                mainActivityViewModel.transmitTableUpdate(
-                    SharedPreferences.read("UserId", "null").toString(),
-                    data[0],
-                    data[1],
-                    SharedPreferences.read("FcmToken", "null").toString(),
-                    TOPIC_DESTINATION, "1"
-                )
+                sendTableUpdate(data[0], data[1], "1", TOPIC_DESTINATION)
             }
         }
 
@@ -322,26 +277,16 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
             if (mainActivityViewModel.mode == 1) {
                 val text = binding.mainActivityUDPClientEditText.text.toString().trim()
 
-                if(text == EXIT_CHAT){
-                    if(mainActivityViewModel.isTimerRunning.value == true){
-                        mainActivityViewModel.timer.cancel()
-                        mainActivityViewModel.isTimerRunning.postValue(false)
-                    }
+                if (text == EXIT_CHAT) {
+
+                    handleTimersCancellation(
+                        isDisconnectedTimerFinished = true,
+                        cancelMainTimer = true,
+                        cancelConnectionTimer = true,
+                        cancelDisconnectedTimer = true
+                    )
 
                     mainActivityViewModel.isConnectionEstablished.postValue(false)
-
-                    if(mainActivityViewModel.isConnectionTimerRunning.value == true){
-                        mainActivityViewModel.connectionTimer.cancel()
-                        mainActivityViewModel.isConnectionTimerRunning.postValue(false)
-                    }
-
-                    if(mainActivityViewModel.isDisconnectedTimerRunning.value == true){
-                        mainActivityViewModel.disconnectedTimer.cancel()
-                        mainActivityViewModel.isDisconnectedTimerRunning.postValue(false)
-                        mainActivityViewModel.isDisconnectedTimerFinished.postValue(true)
-                    }else{
-                        mainActivityViewModel.isDisconnectedTimerFinished.postValue(true)
-                    }
                 }
 
                 if (text.isNotBlank()) {
@@ -364,7 +309,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
 
         databaseViewModel.readAllData.observe(this) {
-            Log.d("Dialog live data","running")
+            Log.d("Dialog live data", "running")
             peopleAdapter.setData(it)
         }
 
@@ -378,7 +323,12 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     }
 
     private fun sendTcpData() {
-        displayProgressIndicator()
+        mainActivityViewModel.isProgressBarVisible = true
+
+        handleProgressBar(
+            mainActivityViewModel.isProgressBarVisible,
+            mainActivityViewModel.isProgressBarVisible
+        )
 
         val data = java.lang.StringBuilder()
 
@@ -485,17 +435,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         }
     }
 
-    private fun displayProgressIndicator() {
-        Log.d("displaying progress indicator", "display")
-        mainActivityViewModel.isProgressBarVisible = true
-        CoroutineScope(Dispatchers.Main.immediate).launch {
-            binding.mainActivityLinesrProgressIndicator.isVisible =
-                mainActivityViewModel.isProgressBarVisible
-            binding.mainActivityLinesrProgressIndicator.isIndeterminate =
-                mainActivityViewModel.isProgressBarVisible
-        }
-    }
-
     private fun createToast(msg: String) {
         CoroutineScope(Dispatchers.Main.immediate).launch {
             val snackBar = Snackbar.make(binding.root, msg, Snackbar.LENGTH_SHORT)
@@ -551,7 +490,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 initiateConnection(
                     bind.configureDialogReceiverIP.text.toString(),
                     bind.configureDialogReceiverPORT.text.toString(),
-                    null
+                    null,
+                    true
                 )
                 dialog.dismiss()
             }
@@ -560,7 +500,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         bind.configureTcpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT =
+                    bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 binding.mainActivityConfigureButton.isVisible = false
@@ -578,12 +519,21 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
     override fun onItemClick(data: ConnectionData) {
         Log.d("people Item", "clicked")
-        initiateConnection(data.ip, data.port, data.token)
+        initiateConnection(data.ip, data.port, data.token,true)
         mainActivityViewModel.token = data.token
         userDialog.dismiss()
     }
 
-    private fun initiateConnection(ip: String, port: String, token: String?) {
+    private fun initiateConnection(ip: String, port: String, token: String?,exitChat : Boolean) {
+
+        if(mainActivityViewModel.isConnectionEstablished.value == true){
+            if (exitChat && mainActivityViewModel.receiverIP != "" && mainActivityViewModel.receiverPORT != 0) {
+                if(ip != mainActivityViewModel.receiverIP){
+                    mainActivityViewModel.sendData(EXIT_CHAT)
+                }
+            }
+        }
+
         mainActivityViewModel.receiverIP = ip
         mainActivityViewModel.receiverPORT = port.toInt()
 
@@ -592,17 +542,10 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         if (mainActivityViewModel.isTimerRunning.value == false) {
             Log.d("starting timer", "started")
             mainActivityViewModel.timer(TIMER_TIME)
-            mainActivityViewModel.isTimerRunning.postValue(true)
         }
 
-        if (mainActivityViewModel.isConnectionTimerRunning.value == true) {
-            mainActivityViewModel.connectionTimer.cancel()
-            mainActivityViewModel.isConnectionTimerRunning.postValue(false)
-        }
-
-        if (mainActivityViewModel.isDisconnectedTimerRunning.value == true) {
+        if(mainActivityViewModel.isDisconnectedTimerRunning.value == true){
             mainActivityViewModel.disconnectedTimer.cancel()
-            mainActivityViewModel.isDisconnectedTimerRunning.postValue(false)
         }
 
         mainActivityViewModel.disconnectedTimer()
@@ -612,21 +555,100 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 mainActivityViewModel.stunDataReceived.value?.get(0).toString(),
                 mainActivityViewModel.stunDataReceived.value?.get(1).toString(),
                 "2",
-                token
+                "/to/$token"
             )
         }
 
-        displayProgressIndicator()
+        mainActivityViewModel.isProgressBarVisible = true
+
+        handleProgressBar(
+            mainActivityViewModel.isProgressBarVisible,
+            mainActivityViewModel.isProgressBarVisible
+        )
     }
 
-    private fun sendTableUpdate(myIp: String, myPort: String, status: String, receiverToken: String) {
+    private fun sendTableUpdate(myIp: String, myPort: String, status: String, destination: String) {
         mainActivityViewModel.transmitTableUpdate(
             SharedPreferences.read("UserId", "null").toString(),
             myIp,
             myPort,
             SharedPreferences.read("FcmToken", "null").toString(),
-            "/to/$receiverToken",
+            destination,
             status
         )
+    }
+
+    private fun handleProgressBar(visible: Boolean, indeterminate: Boolean) {
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            binding.mainActivityLinesrProgressIndicator.isVisible = visible
+            binding.mainActivityLinesrProgressIndicator.isIndeterminate = indeterminate
+
+            if (!indeterminate) {
+                binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
+            }
+        }
+    }
+
+    private fun configureLocalIpAndPort(ip: String, port: String) {
+        if (SharedPreferences.read("myIp", "null") == "null") {
+            SharedPreferences.write("myIp", ip)
+        } else if (SharedPreferences.read("myIp", "null") != ip) {
+            SharedPreferences.write("myIp", ip)
+        }
+
+        if (SharedPreferences.read("myPort", "null") == "null") {
+            SharedPreferences.write("myPort", port)
+        } else if (SharedPreferences.read("myPort", "null") != port) {
+            SharedPreferences.write("myPort", port)
+        }
+    }
+
+    private fun handleSendViews(isEnabled: Boolean) {
+        mainActivityViewModel.isEditTextEnabled = isEnabled
+        mainActivityViewModel.isButtonEnabled = isEnabled
+        binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
+        binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
+    }
+
+    private fun handleConfigurationButton(isEnabled: Boolean) {
+        binding.mainActivityPeopleButton.isEnabled = isEnabled
+        binding.mainActivityConfigureButton.isEnabled = isEnabled
+    }
+
+    private fun setLocalIp(text : String){
+        binding.mainActivityPrivateCredentials.text = text
+    }
+
+    fun handleTimersCancellation(
+        isDisconnectedTimerFinished: Boolean,
+        cancelMainTimer: Boolean,
+        cancelConnectionTimer: Boolean,
+        cancelDisconnectedTimer: Boolean
+    ) {
+
+        if (cancelMainTimer) {
+            if (mainActivityViewModel.isTimerRunning.value == true) {
+                mainActivityViewModel.timer.cancel()
+                mainActivityViewModel.isTimerRunning.postValue(false)
+            }
+        }
+
+        if (cancelConnectionTimer) {
+            if (mainActivityViewModel.isConnectionTimerRunning.value == true) {
+                mainActivityViewModel.connectionTimer.cancel()
+                mainActivityViewModel.isConnectionTimerRunning.postValue(false)
+            }
+        }
+
+        if (cancelDisconnectedTimer) {
+            if (mainActivityViewModel.isDisconnectedTimerRunning.value == true) {
+                mainActivityViewModel.disconnectedTimer.cancel()
+                mainActivityViewModel.isDisconnectedTimerRunning.postValue(false)
+            }
+        }
+
+        if (isDisconnectedTimerFinished) {
+            mainActivityViewModel.isDisconnectedTimerFinished.postValue(isDisconnectedTimerFinished)
+        }
     }
 }

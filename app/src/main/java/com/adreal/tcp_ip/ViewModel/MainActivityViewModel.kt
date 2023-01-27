@@ -50,8 +50,8 @@ class MainActivityViewModel : ViewModel() {
 
     val isTimerFinished = MutableLiveData<Boolean>()
     val isTimerRunning = MutableLiveData(false)
-    val isDisconnectedTimerRunning = MutableLiveData<Boolean>()
-    val isConnectionTimerRunning = MutableLiveData<Boolean>()
+    val isDisconnectedTimerRunning = MutableLiveData(false)
+    val isConnectionTimerRunning = MutableLiveData(false)
 
     private lateinit var udpRetryTimer: CountDownTimer
     private lateinit var tcpRetryTimer : CountDownTimer
@@ -170,6 +170,8 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun timer(time: Long) {
+        isTimerRunning.postValue(true)
+
         timer = object : CountDownTimer(time, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 Log.d("Time left",millisUntilFinished.toString())
@@ -435,19 +437,17 @@ class MainActivityViewModel : ViewModel() {
                             udpReceiverData.clear()
                         } else {
                             if(receivedData != MainActivity.EXIT_CHAT){
+
                                 if(isConnectionEstablished.value == false){
                                     isConnectionEstablished.postValue(true)
                                 }
 
                                 if(isConnectionTimerRunning.value == true){
                                     connectionTimer.cancel()
-                                    CoroutineScope(Dispatchers.Main.immediate).launch {
-                                        connectionTimer()
-                                    }
-                                }else{
-                                    CoroutineScope(Dispatchers.Main.immediate).launch {
-                                        connectionTimer()
-                                    }
+                                }
+
+                                CoroutineScope(Dispatchers.Main.immediate).launch {
+                                    connectionTimer()
                                 }
 
                                 if(isDisconnectedTimerRunning.value == true){
@@ -484,10 +484,9 @@ class MainActivityViewModel : ViewModel() {
                                 if(isDisconnectedTimerRunning.value == true){
                                     disconnectedTimer.cancel()
                                     isDisconnectedTimerRunning.postValue(false)
-                                    isDisconnectedTimerFinished.postValue(true)
-                                }else{
-                                    isDisconnectedTimerFinished.postValue(true)
                                 }
+
+                                isDisconnectedTimerFinished.postValue(true)
                             }
                         }
                     } else {
