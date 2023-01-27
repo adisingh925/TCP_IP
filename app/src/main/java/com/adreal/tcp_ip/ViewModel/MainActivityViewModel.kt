@@ -434,7 +434,9 @@ class MainActivityViewModel : ViewModel() {
 
                             udpReceiverData.clear()
                         } else {
-                            isConnectionEstablished.postValue(true)
+                            if(isConnectionEstablished.value == false){
+                                isConnectionEstablished.postValue(true)
+                            }
 
                             if(isConnectionTimerRunning.value == true){
                                 connectionTimer.cancel()

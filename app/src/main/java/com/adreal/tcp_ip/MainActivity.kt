@@ -103,43 +103,50 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         mainActivityViewModel.receiverData()
 
-        binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+        binding.mainActivityPrivateCredentials.text =
+            "${mainActivityViewModel.getIPAddress(true)} : $PORT"
 
-        if(mainActivityViewModel.isDataInitialized == 0){
-            connectionLiveData.observe(this){
+        if (mainActivityViewModel.isDataInitialized == 0) {
+            connectionLiveData.observe(this) {
 
+                mainActivityViewModel.isConnectionEstablished.postValue(false)
                 binding.mainActivityPeopleButton.isEnabled = false
                 binding.mainActivityConfigureButton.isEnabled = false
 
-                if(it){
-                    Log.d("Main Activity","Online")
+                if (it) {
+                    Log.d("Main Activity", "Online")
                     mainActivityViewModel.sendBindingRequest()
-                    binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
-                }else{
-                    Log.d("Main Activity","Offline")
+                    binding.mainActivityPrivateCredentials.text =
+                        "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+                } else {
+                    Log.d("Main Activity", "Offline")
                 }
             }
 
             mainActivityViewModel.isDataInitialized = 1
         }
 
-        mainActivityViewModel.isConnectionTimerFinished.observe(this){
-            if(it){
-                Log.d("Connection Timer","finished")
+        mainActivityViewModel.isConnectionTimerFinished.observe(this) {
+            if (it) {
+                Log.d("Connection Timer", "finished")
+                mainActivityViewModel.isConnectionEstablished.postValue(false)
                 binding.mainActivityLinesrProgressIndicator.isVisible = true
                 binding.mainActivityLinesrProgressIndicator.isIndeterminate = true
                 mainActivityViewModel.disconnectedTimer()
             }
         }
 
-        mainActivityViewModel.isDisconnectedTimerFinished.observe(this){
-            if(it){
-                Toast.makeText(this,"Connection Terminated...",Toast.LENGTH_SHORT).show()
+        mainActivityViewModel.isDisconnectedTimerFinished.observe(this) {
+            if (it) {
+                Toast.makeText(this, "Connection Terminated...", Toast.LENGTH_SHORT).show()
+
+                mainActivityViewModel.isConnectionEstablished.postValue(false)
 
                 mainActivityViewModel.isProgressBarVisible = false
-                binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
+                binding.mainActivityLinesrProgressIndicator.isVisible =
+                    mainActivityViewModel.isProgressBarVisible
 
-                if(mainActivityViewModel.isTimerRunning.value == true){
+                if (mainActivityViewModel.isTimerRunning.value == true) {
                     mainActivityViewModel.isTimerRunning.postValue(false)
                     mainActivityViewModel.timer.cancel()
                 }
@@ -147,26 +154,30 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                 mainActivityViewModel.isEditTextEnabled = false
                 mainActivityViewModel.isButtonEnabled = false
 
-                binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
-                binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
+                binding.mainActivityUDPClientEditText.isEnabled =
+                    mainActivityViewModel.isEditTextEnabled
+                binding.mainActivityUDPClientButton.isEnabled =
+                    mainActivityViewModel.isButtonEnabled
             }
         }
 
-        mainActivityViewModel.isUdpRetryTimerFinished.observe(this){
+        mainActivityViewModel.isUdpRetryTimerFinished.observe(this) {
             mainActivityViewModel.sendBindingRequest()
-            binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+            binding.mainActivityPrivateCredentials.text =
+                "${mainActivityViewModel.getIPAddress(true)} : $PORT"
         }
 
-        mainActivityViewModel.isTcpRetryTimerFinished.observe(this){
+        mainActivityViewModel.isTcpRetryTimerFinished.observe(this) {
             mainActivityViewModel.sendTcpBindingRequest()
-            binding.mainActivityPrivateCredentials.text = "${mainActivityViewModel.getIPAddress(true)} : $PORT"
+            binding.mainActivityPrivateCredentials.text =
+                "${mainActivityViewModel.getIPAddress(true)} : $PORT"
         }
 
-        databaseViewModel.readAllData.observe(this){
-            Log.d("people data activity",it.toString())
-            for(i in it){
-                if(i.status == "2"){
-                    initiateConnection(i.ip,i.port,null)
+        databaseViewModel.readAllData.observe(this) {
+            Log.d("people data activity", it.toString())
+            for (i in it) {
+                if (i.status == "2") {
+                    initiateConnection(i.ip, i.port, null)
                     mainActivityViewModel.token = i.token
                     i.status = "1"
                     databaseViewModel.addData(i)
@@ -198,24 +209,25 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         initRecycler()
 
         mainActivityViewModel.isConnectionEstablished.observe(this@MainActivity) {
-            if (mainActivityViewModel.isObserverNeeded) {
-                if (it) {
-                    Log.d("connection", "established")
-                    Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
-                    mainActivityViewModel.isProgressBarVisible = false
-                    mainActivityViewModel.isButtonEnabled = true
-                    mainActivityViewModel.isEditTextEnabled = true
+            if (it) {
+                Log.d("connection", "established")
+                Toast.makeText(this, "Connection Established", Toast.LENGTH_SHORT).show()
 
-                    binding.mainActivityLinesrProgressIndicator.isVisible = !(mainActivityViewModel.isProgressBarVisible)
-                    binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
-                    binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
+                mainActivityViewModel.isProgressBarVisible = false
+                mainActivityViewModel.isButtonEnabled = true
+                mainActivityViewModel.isEditTextEnabled = true
 
-                    binding.mainActivityUDPClientEditText.isEnabled = mainActivityViewModel.isEditTextEnabled
-                    binding.mainActivityUDPClientButton.isEnabled = mainActivityViewModel.isButtonEnabled
-                }
+                binding.mainActivityLinesrProgressIndicator.isVisible =
+                    !(mainActivityViewModel.isProgressBarVisible)
+                binding.mainActivityLinesrProgressIndicator.isIndeterminate =
+                    mainActivityViewModel.isProgressBarVisible
+                binding.mainActivityLinesrProgressIndicator.setProgressCompat(100, true)
 
-                mainActivityViewModel.isObserverNeeded = false
+                binding.mainActivityUDPClientEditText.isEnabled =
+                    mainActivityViewModel.isEditTextEnabled
+                binding.mainActivityUDPClientButton.isEnabled =
+                    mainActivityViewModel.isButtonEnabled
             }
         }
 
@@ -234,17 +246,19 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         mainActivityViewModel.stunDataReceived.observe(this) { data ->
 
-            if(mainActivityViewModel.isTimerRunning.value == true){
-                Log.d("reinitializing connection","connecting")
-                initiateConnection(mainActivityViewModel.receiverIP,mainActivityViewModel.receiverPORT.toString(),mainActivityViewModel.token)
+            if (mainActivityViewModel.isTimerRunning.value == true) {
+                Log.d("reinitializing connection", "connecting")
+                initiateConnection(
+                    mainActivityViewModel.receiverIP,
+                    mainActivityViewModel.receiverPORT.toString(),
+                    mainActivityViewModel.token
+                )
             }
 
-            Log.d("stun","response received")
+            Log.d("stun", "response received")
 
             binding.mainActivityPeopleButton.isEnabled = true
             binding.mainActivityConfigureButton.isEnabled = true
-
-            var flag = 0
 
             binding.mainActivityPublicCredentials.text = "${data[0]} : ${data[1]}"
 
@@ -296,8 +310,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
                     data[0],
                     data[1],
                     SharedPreferences.read("FcmToken", "null").toString(),
-                    TOPIC_DESTINATION
-                    ,"1"
+                    TOPIC_DESTINATION, "1"
                 )
             }
         }
@@ -319,13 +332,13 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         userDialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         val bind = PeopleLayoutBinding.inflate(layoutInflater)
 
-        val peopleAdapter = PeopleAdapter(this,this)
+        val peopleAdapter = PeopleAdapter(this, this)
         val recyclerView = bind.peopleLayoutRecyclerView
         recyclerView.adapter = peopleAdapter
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
 
-        databaseViewModel.readAllData.observe(this){
-            Log.d("people data",it.toString())
+        databaseViewModel.readAllData.observe(this) {
+            Log.d("people data", it.toString())
             peopleAdapter.setData(it)
         }
 
@@ -448,11 +461,13 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     }
 
     private fun displayProgressIndicator() {
-        Log.d("displaying progress indicator","display")
+        Log.d("displaying progress indicator", "display")
         mainActivityViewModel.isProgressBarVisible = true
         CoroutineScope(Dispatchers.Main.immediate).launch {
-            binding.mainActivityLinesrProgressIndicator.isVisible = mainActivityViewModel.isProgressBarVisible
-            binding.mainActivityLinesrProgressIndicator.isIndeterminate = mainActivityViewModel.isProgressBarVisible
+            binding.mainActivityLinesrProgressIndicator.isVisible =
+                mainActivityViewModel.isProgressBarVisible
+            binding.mainActivityLinesrProgressIndicator.isIndeterminate =
+                mainActivityViewModel.isProgressBarVisible
         }
     }
 
@@ -508,7 +523,11 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
         bind.configureUdpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
-                initiateConnection(bind.configureDialogReceiverIP.text.toString(),bind.configureDialogReceiverPORT.text.toString(),null)
+                initiateConnection(
+                    bind.configureDialogReceiverIP.text.toString(),
+                    bind.configureDialogReceiverPORT.text.toString(),
+                    null
+                )
                 dialog.dismiss()
             }
         }
@@ -516,7 +535,8 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         bind.configureTcpButton.setOnClickListener {
             if (bind.configureDialogReceiverIP.text.isNotBlank() && bind.configureDialogReceiverPORT.text.isNotBlank()) {
                 mainActivityViewModel.receiverIP = bind.configureDialogReceiverIP.text.toString()
-                mainActivityViewModel.receiverPORT = bind.configureDialogReceiverPORT.text.toString().toInt()
+                mainActivityViewModel.receiverPORT =
+                    bind.configureDialogReceiverPORT.text.toString().toInt()
                 dialog.dismiss()
 
                 binding.mainActivityConfigureButton.isVisible = false
@@ -533,46 +553,46 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
     }
 
     override fun onItemClick(data: ConnectionData) {
-        Log.d("people Item","clicked")
-        initiateConnection(data.ip,data.port, data.token)
+        Log.d("people Item", "clicked")
+        initiateConnection(data.ip, data.port, data.token)
         mainActivityViewModel.token = data.token
         userDialog.dismiss()
     }
 
-    private fun initiateConnection(ip : String, port : String, token : String?){
+    private fun initiateConnection(ip: String, port: String, token: String?) {
         mainActivityViewModel.receiverIP = ip
         mainActivityViewModel.receiverPORT = port.toInt()
 
+        mainActivityViewModel.isConnectionEstablished.postValue(false)
+
         if (mainActivityViewModel.isTimerRunning.value == false) {
-            Log.d("starting timer","started")
+            Log.d("starting timer", "started")
             mainActivityViewModel.timer(TIMER_TIME)
             mainActivityViewModel.isTimerRunning.postValue(true)
         }
 
-        if(mainActivityViewModel.isConnectionTimerRunning.value == true){
+        if (mainActivityViewModel.isConnectionTimerRunning.value == true) {
             mainActivityViewModel.connectionTimer.cancel()
             mainActivityViewModel.isConnectionTimerRunning.postValue(false)
         }
 
-        if(mainActivityViewModel.isDisconnectedTimerRunning.value == true){
+        if (mainActivityViewModel.isDisconnectedTimerRunning.value == true) {
             mainActivityViewModel.disconnectedTimer.cancel()
             mainActivityViewModel.isDisconnectedTimerRunning.postValue(false)
         }
 
         mainActivityViewModel.disconnectedTimer()
 
-        if(token != null){
+        if (token != null) {
             mainActivityViewModel.transmitTableUpdate(
                 SharedPreferences.read("UserId", "null").toString(),
                 mainActivityViewModel.stunDataReceived.value?.get(0).toString(),
                 mainActivityViewModel.stunDataReceived.value?.get(1).toString(),
                 SharedPreferences.read("FcmToken", "null").toString(),
-                "/to/$token"
-                ,"2"
+                "/to/$token", "2"
             )
         }
 
         displayProgressIndicator()
-        mainActivityViewModel.isObserverNeeded = true
     }
 }
