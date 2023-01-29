@@ -22,6 +22,7 @@ import com.adreal.tcp_ip.Connection.ConnectionLiveData
 import com.adreal.tcp_ip.Constants.Constants
 import com.adreal.tcp_ip.DataClass.ChatModel
 import com.adreal.tcp_ip.DataClass.ConnectionData
+import com.adreal.tcp_ip.Encryption.Encryption
 import com.adreal.tcp_ip.SharedPreferences.SharedPreferences
 import com.adreal.tcp_ip.ViewModel.DatabaseViewModel
 import com.adreal.tcp_ip.ViewModel.MainActivityViewModel
@@ -98,6 +99,12 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         setContentView(binding.root)
 
         SharedPreferences.init(this)
+
+//        val keyPair = Encryption(this).getAsymmetricKeyPair()
+//        val encryptedData = Encryption(this).encrypt("hello",keyPair.public)
+//        Log.d("MainActivity Encrypted Data",encryptedData)
+//        val decryptedData = Encryption(this).decrypt(encryptedData,keyPair.private)
+//        Log.d("MainActivity Decrypted Data",decryptedData)
 
         mainActivityViewModel.receiverData()
 
