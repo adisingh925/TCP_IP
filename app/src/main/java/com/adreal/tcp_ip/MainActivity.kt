@@ -89,7 +89,7 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
         const val STUNTMAN_STUN_SERVER_PORT_TCP = 3478
         const val TIMER_TIME: Long = 3600000
         const val TOPIC_DESTINATION = "/topics/${Constants.FCM_TOPIC}"
-        const val EXIT_CHAT = "EXIT_CHAT"
+        const val EXIT_CHAT = "1&0:EXIT_CHAT"
         const val TERMINATION_MESSAGE = ""
     }
 

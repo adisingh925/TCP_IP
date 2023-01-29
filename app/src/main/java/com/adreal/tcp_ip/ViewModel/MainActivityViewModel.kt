@@ -397,8 +397,6 @@ class MainActivityViewModel : ViewModel() {
 
     fun receiverData() {
         CoroutineScope(Dispatchers.IO).launch {
-
-            val udpReceiverData = java.lang.StringBuilder()
             val packets = TreeMap<Int, ByteArray>()
             var lastReceivedSequenceNumber = -1
 
@@ -416,11 +414,9 @@ class MainActivityViewModel : ViewModel() {
 
                 if (messageType == 0x0101.toShort()) {
                     try {
-                        val receiveMH =
-                            MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                         receiveMH.parseAttributes(rp.data)
-                        ma =
-                            receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+                        ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
                         val list = kotlin.collections.ArrayList<String>()
                         list.add(ma.address.toString())
@@ -432,11 +428,9 @@ class MainActivityViewModel : ViewModel() {
                         initUdpRetryTimer()
                     }
                 } else {
-
                     if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING && receivedData != MainActivity.EXIT_CHAT) {
 
-                        val sequenceNumber =
-                            receivedData.substringAfter("&").substringBefore(':').toInt()
+                        val sequenceNumber = receivedData.substringAfter("&").substringBefore(':').toInt()
                         val numberOfPackets = receivedData.substringBefore("&").toInt()
 
                         if (sequenceNumber == lastReceivedSequenceNumber + 1) {
@@ -449,8 +443,7 @@ class MainActivityViewModel : ViewModel() {
 
                         if (packets.size == numberOfPackets) {
                             // we have received all packets
-                            val originalData =
-                                packets.values.reduce { a, b -> a + b }.toString(Charsets.UTF_8)
+                            val originalData = packets.values.reduce { a, b -> a + b }.toString(Charsets.UTF_8)
                             println("Reassembled data: $originalData")
 
                             chatData.add(
@@ -473,14 +466,15 @@ class MainActivityViewModel : ViewModel() {
                             isDisconnectedTimerRunning.postValue(false)
                         }
 
+                        if (isConnectionTimerRunning.value == true) {
+                            connectionTimer.cancel()
+                            isConnectionTimerRunning.postValue(false)
+                        }
+
                         if (receivedData != MainActivity.EXIT_CHAT) {
 
                             if (isConnectionEstablished.value == false) {
                                 isConnectionEstablished.postValue(true)
-                            }
-
-                            if (isConnectionTimerRunning.value == true) {
-                                connectionTimer.cancel()
                             }
 
                             CoroutineScope(Dispatchers.Main.immediate).launch {
@@ -502,11 +496,6 @@ class MainActivityViewModel : ViewModel() {
                             if (isTimerRunning.value == true) {
                                 timer.cancel()
                                 isTimerRunning.postValue(false)
-                            }
-
-                            if (isConnectionTimerRunning.value == true) {
-                                connectionTimer.cancel()
-                                isConnectionTimerRunning.postValue(false)
                             }
 
                             isDisconnectedTimerFinished.postValue(true)
