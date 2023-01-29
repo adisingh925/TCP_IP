@@ -416,9 +416,11 @@ class MainActivityViewModel : ViewModel() {
 
                 if (messageType == 0x0101.toShort()) {
                     try {
-                        val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                        val receiveMH =
+                            MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                         receiveMH.parseAttributes(rp.data)
-                        ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+                        ma =
+                            receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
 
                         val list = kotlin.collections.ArrayList<String>()
                         list.add(ma.address.toString())
@@ -431,25 +433,27 @@ class MainActivityViewModel : ViewModel() {
                     }
                 } else {
 
-                        if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING && receivedData != MainActivity.EXIT_CHAT) {
+                    if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING && receivedData != MainActivity.EXIT_CHAT) {
 
-                            val sequenceNumber = receivedData.substringAfter("&").substringBefore(':').toInt()
-                            val numberOfPackets = receivedData.substringBefore("&").toInt()
+                        val sequenceNumber =
+                            receivedData.substringAfter("&").substringBefore(':').toInt()
+                        val numberOfPackets = receivedData.substringBefore("&").toInt()
 
-                            if (sequenceNumber == lastReceivedSequenceNumber + 1) {
-                                // packet is the next one in the sequence
-                                packets[sequenceNumber] = receivedData.substringAfter(':').toByteArray()
-                                lastReceivedSequenceNumber = sequenceNumber
-                            } else {
-                                packets[sequenceNumber] = receivedData.substringAfter(':').toByteArray()
-                            }
+                        if (sequenceNumber == lastReceivedSequenceNumber + 1) {
+                            // packet is the next one in the sequence
+                            packets[sequenceNumber] = receivedData.substringAfter(':').toByteArray()
+                            lastReceivedSequenceNumber = sequenceNumber
+                        } else {
+                            packets[sequenceNumber] = receivedData.substringAfter(':').toByteArray()
+                        }
 
-                            if (packets.size == numberOfPackets) {
-                                // we have received all packets
-                                val originalData = packets.values.reduce{a,b->  a + b}.toString(Charsets.UTF_8)
-                                println("Reassembled data: $originalData")
+                        if (packets.size == numberOfPackets) {
+                            // we have received all packets
+                            val originalData =
+                                packets.values.reduce { a, b -> a + b }.toString(Charsets.UTF_8)
+                            println("Reassembled data: $originalData")
 
-                                chatData.add(
+                            chatData.add(
                                 ChatModel(
                                     1,
                                     originalData,
@@ -459,80 +463,55 @@ class MainActivityViewModel : ViewModel() {
 
                             chatList.postValue(chatData)
 
-                                packets.clear()
-                                lastReceivedSequenceNumber = -1
-                            }
-
-//                            udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
-//
-//                            chatData.add(
-//                                ChatModel(
-//                                    1,
-//                                    udpReceiverData.toString(),
-//                                    System.currentTimeMillis()
-//                                )
-//                            )
-//                            chatList.postValue(chatData)
-//
-//                            udpReceiverData.clear()
-                        } else {
-                            if (receivedData != MainActivity.EXIT_CHAT) {
-
-                                if (isConnectionEstablished.value == false) {
-                                    isConnectionEstablished.postValue(true)
-                                }
-
-                                if (isConnectionTimerRunning.value == true) {
-                                    connectionTimer.cancel()
-                                }
-
-                                CoroutineScope(Dispatchers.Main.immediate).launch {
-                                    connectionTimer()
-                                }
-
-                                if (isDisconnectedTimerRunning.value == true) {
-                                    disconnectedTimer.cancel()
-                                    isDisconnectedTimerRunning.postValue(false)
-                                }
-                            } else {
-                                udpReceiverData.append("Person has left the chat.")
-
-                                chatData.add(
-                                    ChatModel(
-                                        1,
-                                        udpReceiverData.toString(),
-                                        System.currentTimeMillis()
-                                    )
-                                )
-
-                                chatList.postValue(chatData)
-
-                                udpReceiverData.clear()
-
-                                isConnectionEstablished.postValue(false)
-
-                                if (isTimerRunning.value == true) {
-                                    timer.cancel()
-                                    isTimerRunning.postValue(false)
-                                }
-
-                                if (isConnectionTimerRunning.value == true) {
-                                    connectionTimer.cancel()
-                                    isConnectionTimerRunning.postValue(false)
-                                }
-
-                                if (isDisconnectedTimerRunning.value == true) {
-                                    disconnectedTimer.cancel()
-                                    isDisconnectedTimerRunning.postValue(false)
-                                }
-
-                                isDisconnectedTimerFinished.postValue(true)
-                            }
+                            packets.clear()
+                            lastReceivedSequenceNumber = -1
                         }
-//                    }
-//                    else {
-//                        udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
-//                    }
+                    } else {
+
+                        if (isDisconnectedTimerRunning.value == true) {
+                            disconnectedTimer.cancel()
+                            isDisconnectedTimerRunning.postValue(false)
+                        }
+
+                        if (receivedData != MainActivity.EXIT_CHAT) {
+
+                            if (isConnectionEstablished.value == false) {
+                                isConnectionEstablished.postValue(true)
+                            }
+
+                            if (isConnectionTimerRunning.value == true) {
+                                connectionTimer.cancel()
+                            }
+
+                            CoroutineScope(Dispatchers.Main.immediate).launch {
+                                connectionTimer()
+                            }
+                        } else {
+                            chatData.add(
+                                ChatModel(
+                                    1,
+                                    "Person has left the chat.",
+                                    System.currentTimeMillis()
+                                )
+                            )
+
+                            chatList.postValue(chatData)
+
+                            isConnectionEstablished.postValue(false)
+
+                            if (isTimerRunning.value == true) {
+                                timer.cancel()
+                                isTimerRunning.postValue(false)
+                            }
+
+                            if (isConnectionTimerRunning.value == true) {
+                                connectionTimer.cancel()
+                                isConnectionTimerRunning.postValue(false)
+                            }
+
+                            isDisconnectedTimerFinished.postValue(true)
+                        }
+                    }
                 }
             }
         }
@@ -566,7 +545,7 @@ class MainActivityViewModel : ViewModel() {
         sequenceNumber: Int,
         address: InetAddress,
         port: Int,
-        numberOfPackets : Int
+        numberOfPackets: Int
     ): DatagramPacket {
         val packetData = "$numberOfPackets&$sequenceNumber:$data".toByteArray()
         return DatagramPacket(packetData, packetData.size, address, port)

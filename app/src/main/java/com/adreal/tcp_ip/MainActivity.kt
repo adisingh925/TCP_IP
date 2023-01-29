@@ -239,16 +239,6 @@ class MainActivity : AppCompatActivity(), PeopleAdapter.OnItemClickListener {
 
             configureLocalIpAndPort(data[0], data[1])
 
-//            if (mainActivityViewModel.isTimerRunning.value == true) {
-//                Log.d("reinitializing connection", "connecting")
-//                initiateConnection(
-//                    mainActivityViewModel.receiverIP,
-//                    mainActivityViewModel.receiverPORT.toString(),
-//                    mainActivityViewModel.token,
-//                    false
-//                )
-//            }
-
             handleConfigurationButton(true)
 
             binding.mainActivityPublicCredentials.text = "${data[0]} : ${data[1]}"
