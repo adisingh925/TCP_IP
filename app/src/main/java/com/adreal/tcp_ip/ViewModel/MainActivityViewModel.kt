@@ -321,11 +321,9 @@ class MainActivityViewModel : ViewModel() {
             }
 
             try {
-                val receiveMH =
-                    MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                 receiveMH.parseAttributes(response)
-                ma =
-                    receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+                ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
                 // Process the response
                 tcpStunDataReceived.postValue("${ma.address} : ${ma.port}")
             } catch (e: Exception) {
@@ -365,32 +363,6 @@ class MainActivityViewModel : ViewModel() {
                         initUdpRetryTimer()
                     }
                 }
-
-//                val rp = DatagramPacket(ByteArray(32), 32)
-//
-//                withContext(Dispatchers.IO) {
-//                    try {
-//                        socket.receive(rp)
-//                    }catch (e : Exception){
-//                        Log.d("udp binding request receive failed",e.message.toString())
-//                        initUdpRetryTimer()
-//                    }
-//                }
-//
-//                try {
-//                    val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
-//                    receiveMH.parseAttributes(rp.data)
-//                    ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
-//                }catch (e : Exception){
-//                    Log.d("udp binding parsing error",e.message.toString())
-//                    initUdpRetryTimer()
-//                }
-//
-//                val list = kotlin.collections.ArrayList<String>()
-//                list.add(ma.address.toString())
-//                list.add(ma.port.toString())
-//
-//                stunDataReceived.postValue(list)
             }
         }
     }
