@@ -43,7 +43,7 @@ class MainActivityViewModel : ViewModel() {
     val stunDataReceived = MutableLiveData<List<String>>()
     var isDataInitialized = 0
 
-    var isEditTextEnabled : Boolean = false
+    var isEditTextEnabled: Boolean = false
     var isButtonEnabled = false
     var isProgressBarVisible = false
     var isObserverNeeded = true
@@ -54,30 +54,30 @@ class MainActivityViewModel : ViewModel() {
     val isConnectionTimerRunning = MutableLiveData(false)
 
     private lateinit var udpRetryTimer: CountDownTimer
-    private lateinit var tcpRetryTimer : CountDownTimer
-    lateinit var connectionTimer : CountDownTimer
+    private lateinit var tcpRetryTimer: CountDownTimer
+    lateinit var connectionTimer: CountDownTimer
     val isUdpRetryTimerFinished = MutableLiveData<Boolean>()
     val isTcpRetryTimerFinished = MutableLiveData<Boolean>()
     val isConnectionTimerFinished = MutableLiveData<Boolean>()
     val isDisconnectedTimerFinished = MutableLiveData<Boolean>()
     var isConnectionReestablished = MutableLiveData<Boolean>()
-    lateinit var disconnectedTimer : CountDownTimer
+    lateinit var disconnectedTimer: CountDownTimer
     var isTcpRetryTimerInitialized = 0
     var isUdpRetryTimerInitialized = 0
 
     private lateinit var outputStream: DataOutputStream
     private lateinit var inputStream: DataInputStream
-    private lateinit var ma : MappedAddress
+    private lateinit var ma: MappedAddress
 
     var isBindingRequestInit = 0
 
-    var token : String? = null
+    var token: String? = null
 
     private val socket by lazy {
         DatagramSocket(MainActivity.PORT)
     }
 
-    fun disconnectedTimer(){
+    fun disconnectedTimer() {
         isDisconnectedTimerRunning.postValue(true)
 
         disconnectedTimer = object : CountDownTimer(30000, 1000) {
@@ -86,7 +86,7 @@ class MainActivityViewModel : ViewModel() {
             }
 
             override fun onFinish() {
-                Log.d("Disconnected Timer","Finished")
+                Log.d("Disconnected Timer", "Finished")
                 isDisconnectedTimerFinished.postValue(true)
                 isDisconnectedTimerRunning.postValue(false)
             }
@@ -94,7 +94,7 @@ class MainActivityViewModel : ViewModel() {
         disconnectedTimer.start()
     }
 
-    private fun connectionTimer(){
+    private fun connectionTimer() {
         isConnectionTimerRunning.postValue(true)
 
         connectionTimer = object : CountDownTimer(5000, 1000) {
@@ -103,7 +103,7 @@ class MainActivityViewModel : ViewModel() {
             }
 
             override fun onFinish() {
-                Log.d("connection Timer","Finished")
+                Log.d("connection Timer", "Finished")
                 isConnectionTimerRunning.postValue(false)
                 isConnectionTimerFinished.postValue(true)
             }
@@ -111,35 +111,42 @@ class MainActivityViewModel : ViewModel() {
         connectionTimer.start()
     }
 
-    private fun udpRetryTimer(){
+    private fun udpRetryTimer() {
         udpRetryTimer = object : CountDownTimer(3000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
 //                Log.d("Udp Retry Timer","running")
             }
 
             override fun onFinish() {
-                Log.d("Udp Retry Timer","Finished")
+                Log.d("Udp Retry Timer", "Finished")
                 isUdpRetryTimerFinished.postValue(true)
             }
         }
         udpRetryTimer.start()
     }
 
-    private fun tcpRetryTimer(){
+    private fun tcpRetryTimer() {
         tcpRetryTimer = object : CountDownTimer(3000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
 //                Log.d("Tcp Retry Timer","running")
             }
 
             override fun onFinish() {
-                Log.d("Tcp Retry Timer","Finished")
+                Log.d("Tcp Retry Timer", "Finished")
                 isTcpRetryTimerFinished.postValue(true)
             }
         }
         tcpRetryTimer.start()
     }
 
-    fun transmitTableUpdate(userId : String, publicIp : String, publicPort : String, token : String, destination : String,status : String){
+    fun transmitTableUpdate(
+        userId: String,
+        publicIp: String,
+        publicPort: String,
+        token: String,
+        destination: String,
+        status: String
+    ) {
         val jsonObject = JSONObject()
         val jsonObject1 = JSONObject()
 
@@ -150,7 +157,7 @@ class MainActivityViewModel : ViewModel() {
         jsonObject1.put("publicIp", publicIp)
         jsonObject1.put("publicPort", publicPort)
         jsonObject1.put("token", token)
-        jsonObject1.put("status",status)
+        jsonObject1.put("status", status)
 
         val json = "application/json; charset=utf-8".toMediaTypeOrNull()
         val body = jsonObject.toString().toRequestBody(json)
@@ -158,13 +165,13 @@ class MainActivityViewModel : ViewModel() {
         SendFcmSignalObject.sendFcmSignal.sendSignal(
             "key=${Constants.FCM_API_KEY}",
             body
-        ).enqueue(object : Callback<FcmResponse>{
+        ).enqueue(object : Callback<FcmResponse> {
             override fun onResponse(call: Call<FcmResponse>, response: Response<FcmResponse>) {
-                Log.d("Fcm Message","send")
+                Log.d("Fcm Message", "send")
             }
 
             override fun onFailure(call: Call<FcmResponse>, t: Throwable) {
-                Log.d("Fcm Message","failed")
+                Log.d("Fcm Message", "failed")
             }
         })
     }
@@ -174,7 +181,7 @@ class MainActivityViewModel : ViewModel() {
 
         timer = object : CountDownTimer(time, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-                Log.d("Time left",millisUntilFinished.toString())
+                Log.d("Time left", millisUntilFinished.toString())
                 CoroutineScope(Dispatchers.IO).launch {
                     val p = DatagramPacket(
                         MainActivity.CONNECTION_ESTABLISH_STRING.toByteArray(),
@@ -186,18 +193,18 @@ class MainActivityViewModel : ViewModel() {
                     )
 
                     withContext(Dispatchers.IO) {
-                        Log.d("sending...",p.data.toString())
+                        Log.d("sending...", p.data.toString())
                         try {
                             socket.send(p)
-                        }catch (e : Exception){
-                            Log.d("timer send exception",e.message.toString())
+                        } catch (e: Exception) {
+                            Log.d("timer send exception", e.message.toString())
                         }
                     }
                 }
             }
 
             override fun onFinish() {
-                Log.d("Timer","Finished")
+                Log.d("Timer", "Finished")
                 isTimerFinished.postValue(true)
             }
         }
@@ -230,8 +237,8 @@ class MainActivityViewModel : ViewModel() {
                     }
                 }
             }
-        } catch (e : Exception) {
-            Log.d("ip address exception",e.message.toString())
+        } catch (e: Exception) {
+            Log.d("ip address exception", e.message.toString())
         }
         return ""
     }
@@ -259,8 +266,8 @@ class MainActivityViewModel : ViewModel() {
                             MainActivity.STUNTMAN_STUN_SERVER_PORT_TCP
                         )
                     )
-                }catch (e : Exception){
-                    Log.d("tcp binding request connect failed",e.message.toString())
+                } catch (e: Exception) {
+                    Log.d("tcp binding request connect failed", e.message.toString())
                     initTcpRetryTimer()
                 }
             }
@@ -269,8 +276,8 @@ class MainActivityViewModel : ViewModel() {
                 inputStream = DataInputStream(withContext(Dispatchers.IO) {
                     tcpSocket.getInputStream()
                 })
-            }catch (e : Exception){
-                Log.d("tcp binding request input stream failed",e.message.toString())
+            } catch (e: Exception) {
+                Log.d("tcp binding request input stream failed", e.message.toString())
                 initTcpRetryTimer()
             }
 
@@ -278,8 +285,8 @@ class MainActivityViewModel : ViewModel() {
                 outputStream = DataOutputStream(withContext(Dispatchers.IO) {
                     tcpSocket.getOutputStream()
                 })
-            }catch (e : Exception){
-                Log.d("tcp binding request output stream failed",e.message.toString())
+            } catch (e: Exception) {
+                Log.d("tcp binding request output stream failed", e.message.toString())
                 initTcpRetryTimer()
             }
 
@@ -287,16 +294,16 @@ class MainActivityViewModel : ViewModel() {
             withContext(Dispatchers.IO) {
                 try {
                     outputStream.write(data)
-                }catch (e : Exception){
-                    Log.d("tcp binding request output write stream failed",e.message.toString())
+                } catch (e: Exception) {
+                    Log.d("tcp binding request output write stream failed", e.message.toString())
                     initTcpRetryTimer()
                 }
             }
             withContext(Dispatchers.IO) {
                 try {
                     outputStream.flush()
-                }catch (e : Exception){
-                    Log.d("tcp binding request output flush failed",e.message.toString())
+                } catch (e: Exception) {
+                    Log.d("tcp binding request output flush failed", e.message.toString())
                     initTcpRetryTimer()
                 }
 
@@ -307,20 +314,22 @@ class MainActivityViewModel : ViewModel() {
             withContext(Dispatchers.IO) {
                 try {
                     inputStream.read(response)
-                }catch (e : Exception){
-                    Log.d("tcp binding request input stream read failed",e.message.toString())
+                } catch (e: Exception) {
+                    Log.d("tcp binding request input stream read failed", e.message.toString())
                     initTcpRetryTimer()
                 }
             }
 
             try {
-                val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
+                val receiveMH =
+                    MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                 receiveMH.parseAttributes(response)
-                ma = receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
+                ma =
+                    receiveMH.getMessageAttribute(MessageAttributeInterface.MessageAttributeType.MappedAddress) as MappedAddress
                 // Process the response
                 tcpStunDataReceived.postValue("${ma.address} : ${ma.port}")
-            }catch (e : Exception){
-                Log.d("tcp binding request parsing failed",e.message.toString())
+            } catch (e: Exception) {
+                Log.d("tcp binding request parsing failed", e.message.toString())
                 initTcpRetryTimer()
             }
 
@@ -351,8 +360,8 @@ class MainActivityViewModel : ViewModel() {
                 withContext(Dispatchers.IO) {
                     try {
                         socket.send(p)
-                    }catch (e : Exception){
-                        Log.d("udp binding request send failed",e.message.toString())
+                    } catch (e: Exception) {
+                        Log.d("udp binding request send failed", e.message.toString())
                         initUdpRetryTimer()
                     }
                 }
@@ -390,6 +399,8 @@ class MainActivityViewModel : ViewModel() {
         CoroutineScope(Dispatchers.IO).launch {
 
             val udpReceiverData = java.lang.StringBuilder()
+            val packets = TreeMap<Int, ByteArray>()
+            var lastReceivedSequenceNumber = -1
 
             while (true) {
                 val rp = DatagramPacket(ByteArray(1024), 1024)
@@ -403,7 +414,7 @@ class MainActivityViewModel : ViewModel() {
 
                 val messageType = ((rp.data[0].toInt() shl 8) or rp.data[1].toInt()).toShort()
 
-                if(messageType == 0x0101.toShort()){
+                if (messageType == 0x0101.toShort()) {
                     try {
                         val receiveMH = MessageHeader(MessageHeaderInterface.MessageHeaderType.BindingRequest)
                         receiveMH.parseAttributes(rp.data)
@@ -414,35 +425,64 @@ class MainActivityViewModel : ViewModel() {
                         list.add(ma.port.toString())
 
                         stunDataReceived.postValue(list)
-                    }catch (e : Exception){
-                        Log.d("udp binding parsing error",e.message.toString())
+                    } catch (e: Exception) {
+                        Log.d("udp binding parsing error", e.message.toString())
                         initUdpRetryTimer()
                     }
-                }else{
-                    if (receivedData.toByteArray().size < 256) {
+                } else {
 
                         if (receivedData != MainActivity.CONNECTION_ESTABLISH_STRING && receivedData != MainActivity.EXIT_CHAT) {
 
-                            udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
+                            val sequenceNumber = receivedData.substringAfter("&").substringBefore(':').toInt()
+                            val numberOfPackets = receivedData.substringBefore("&").toInt()
 
-                            chatData.add(
+                            if (sequenceNumber == lastReceivedSequenceNumber + 1) {
+                                // packet is the next one in the sequence
+                                packets[sequenceNumber] = receivedData.substringAfter(':').toByteArray()
+                                lastReceivedSequenceNumber = sequenceNumber
+                            } else {
+                                packets[sequenceNumber] = receivedData.substringAfter(':').toByteArray()
+                            }
+
+                            if (packets.size == numberOfPackets) {
+                                // we have received all packets
+                                val originalData = packets.values.reduce{a,b->  a + b}.toString(Charsets.UTF_8)
+                                println("Reassembled data: $originalData")
+
+                                chatData.add(
                                 ChatModel(
                                     1,
-                                    udpReceiverData.toString(),
+                                    originalData,
                                     System.currentTimeMillis()
                                 )
                             )
+
                             chatList.postValue(chatData)
 
-                            udpReceiverData.clear()
-                        } else {
-                            if(receivedData != MainActivity.EXIT_CHAT){
+                                packets.clear()
+                                lastReceivedSequenceNumber = -1
+                            }
 
-                                if(isConnectionEstablished.value == false){
+//                            udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
+//
+//                            chatData.add(
+//                                ChatModel(
+//                                    1,
+//                                    udpReceiverData.toString(),
+//                                    System.currentTimeMillis()
+//                                )
+//                            )
+//                            chatList.postValue(chatData)
+//
+//                            udpReceiverData.clear()
+                        } else {
+                            if (receivedData != MainActivity.EXIT_CHAT) {
+
+                                if (isConnectionEstablished.value == false) {
                                     isConnectionEstablished.postValue(true)
                                 }
 
-                                if(isConnectionTimerRunning.value == true){
+                                if (isConnectionTimerRunning.value == true) {
                                     connectionTimer.cancel()
                                 }
 
@@ -450,11 +490,11 @@ class MainActivityViewModel : ViewModel() {
                                     connectionTimer()
                                 }
 
-                                if(isDisconnectedTimerRunning.value == true){
+                                if (isDisconnectedTimerRunning.value == true) {
                                     disconnectedTimer.cancel()
                                     isDisconnectedTimerRunning.postValue(false)
                                 }
-                            }else{
+                            } else {
                                 udpReceiverData.append("Person has left the chat.")
 
                                 chatData.add(
@@ -471,17 +511,17 @@ class MainActivityViewModel : ViewModel() {
 
                                 isConnectionEstablished.postValue(false)
 
-                                if(isTimerRunning.value == true){
+                                if (isTimerRunning.value == true) {
                                     timer.cancel()
                                     isTimerRunning.postValue(false)
                                 }
 
-                                if(isConnectionTimerRunning.value == true){
+                                if (isConnectionTimerRunning.value == true) {
                                     connectionTimer.cancel()
                                     isConnectionTimerRunning.postValue(false)
                                 }
 
-                                if(isDisconnectedTimerRunning.value == true){
+                                if (isDisconnectedTimerRunning.value == true) {
                                     disconnectedTimer.cancel()
                                     isDisconnectedTimerRunning.postValue(false)
                                 }
@@ -489,9 +529,10 @@ class MainActivityViewModel : ViewModel() {
                                 isDisconnectedTimerFinished.postValue(true)
                             }
                         }
-                    } else {
-                        udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
-                    }
+//                    }
+//                    else {
+//                        udpReceiverData.append(String(rp.data, 0, rp.data.indexOf(0)))
+//                    }
                 }
             }
         }
@@ -501,33 +542,39 @@ class MainActivityViewModel : ViewModel() {
         val port = receiverPORT
         val ip = receiverIP
 
-        Log.d("sending...",text)
+        Log.d("sending...", text)
 
         chatData.add(ChatModel(0, text, System.currentTimeMillis()))
         chatList.postValue(chatData)
 
         val chunks = text.chunked(256)
+        val size = chunks.size
 
-        for (chunk in chunks) {
+        for ((sequenceNumber, chunk) in chunks.withIndex()) {
+            val packet = createPacket(chunk, sequenceNumber, InetAddress.getByName(ip), port, size)
             CoroutineScope(Dispatchers.IO).launch {
-                val p = DatagramPacket(
-                    chunk.toByteArray(), chunk.toByteArray().size,
-                    withContext(Dispatchers.IO) {
-                        InetAddress.getByName(ip)
-                    }, port
-                )
                 withContext(Dispatchers.IO) {
-                    socket.send(p)
+                    socket.send(packet)
                 }
             }
-
             Log.d("chunk size", chunk.toByteArray().size.toString())
         }
     }
 
-    private fun initTcpRetryTimer(){
-        if(isTcpRetryTimerInitialized == 0){
-            Log.d("tcp retry called","init")
+    private fun createPacket(
+        data: String,
+        sequenceNumber: Int,
+        address: InetAddress,
+        port: Int,
+        numberOfPackets : Int
+    ): DatagramPacket {
+        val packetData = "$numberOfPackets&$sequenceNumber:$data".toByteArray()
+        return DatagramPacket(packetData, packetData.size, address, port)
+    }
+
+    private fun initTcpRetryTimer() {
+        if (isTcpRetryTimerInitialized == 0) {
+            Log.d("tcp retry called", "init")
             CoroutineScope(Dispatchers.Main.immediate).launch {
                 tcpRetryTimer()
             }
@@ -535,9 +582,9 @@ class MainActivityViewModel : ViewModel() {
         }
     }
 
-    private fun initUdpRetryTimer(){
-        if(isUdpRetryTimerInitialized == 0){
-            Log.d("udp retry called","init")
+    private fun initUdpRetryTimer() {
+        if (isUdpRetryTimerInitialized == 0) {
+            Log.d("udp retry called", "init")
             CoroutineScope(Dispatchers.Main.immediate).launch {
                 udpRetryTimer()
             }
